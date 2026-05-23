@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>渓流マップ</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --bg: #111;
+    --surface: #1c1c1c;
+    --surface2: #252525;
+    --border: #333;
+    --border2: #444;
+    --text: #e0e0e0;
+    --text2: #888;
+    --text3: #555;
+    --track-color: #9b3fa0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ヘッダー */
+  #header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: 1000;
+  }
+  #header-left { display: flex; align-items: baseline; gap: 8px; }
+  #header h1 { font-size: 15px; font-weight: 700; letter-spacing: 0.08em; color: var(--text); }
+  #version { font-size: 10px; color: var(--text3); letter-spacing: 0.05em; }
+  #gps-status { display: flex; align-items: center; gap: 6px; }
+  #gps-dot { width: 7px; height: 7px; border-radius: 50%; background: #444; flex-shrink: 0; }
+  #gps-dot.active { background: #888; animation: pulse 2s infinite; }
+  #gps-dot.recording { background: var(--track-color); animation: pulse 1s infinite; }
+  #gps-label { font-size: 14px; color: var(--text2); font-weight: 500; min-width: 58px; text-align: right; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* 地図 */
+  #map { flex: 1; z-index: 1; min-height: 0; }
+
+  /* 活動統計バー（記録中） */
+  #stats-bar {
+    display: none;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid rgba(155,63,160,0.4);
+    padding: 8px 14px;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+  #stats-bar.show { display: block; }
+  #stats-row1 {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  #stats-row2 {
+    display: flex;
+    justify-content: space-between;
+  }
+  .stat-item { text-align: center; flex: 1; }
+  .stat-label { font-size: 9px; color: var(--text3); letter-spacing: 0.06em; margin-bottom: 2px; }
+  .stat-value { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: 0.03em; }
+  .stat-unit { font-size: 9px; color: var(--text3); margin-left: 1px; }
+  .stat-divider { width: 1px; background: var(--border); flex-shrink: 0; }
+
+  /* 下部コントロール（2段） */
+  #controls {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 8px 12px 12px;
+    flex-shrink: 0;
+    z-index: 1000;
+  }
+  .ctrl-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .ctrl-row:last-child { margin-bottom: 0; }
+
+  .ctrl-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    color: var(--text2);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    padding: 13px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.15s;
+  }
+  .ctrl-btn:active { transform: scale(0.97); }
+
+  #btn-track-start { border-color: var(--border2); color: var(--text2); }
+  #btn-track-start.recording {
+    background: rgba(155,63,160,0.15);
+    border-color: var(--track-color);
+    color: var(--track-color);
+  }
+  #btn-log { position: relative; }
+  #log-count {
+    position: absolute; top: -5px; right: -5px;
+    background: var(--text2); color: var(--bg);
+    font-size: 10px; font-weight: 700;
+    border-radius: 50%; width: 17px; height: 17px;
+    display: none; align-items: center; justify-content: center;
+  }
+  #btn-point { color: var(--text); border-color: #555; }
+  #btn-clear { color: var(--text3); border-color: var(--border); }
+
+  /* 現在地ボタン */
+  #btn-myloc {
+    position: absolute;
+    right: 14px;
+    bottom: 130px;
+    z-index: 900;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 50%;
+    width: 42px; height: 42px;
+    font-size: 17px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    color: var(--text2);
+  }
+
+  /* ポイント種別シート */
+  #point-sheet {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    padding: 16px 12px 32px;
+    z-index: 2500;
+    transform: translateY(100%);
+    transition: transform 0.25s ease;
+  }
+  #point-sheet.open { transform: translateY(0); }
+  #point-sheet h3 { font-size: 11px; color: var(--text3); text-align: center; margin-bottom: 14px; letter-spacing: 0.1em; }
+  #point-types { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .type-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    padding: 14px 4px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.15s;
+  }
+  .type-btn:active { transform: scale(0.96); }
+  .type-btn .t-icon { font-size: 20px; }
+  #sheet-cancel {
+    margin-top: 10px; width: 100%;
+    background: none; border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text3);
+    font-size: 13px; font-weight: 700; font-family: inherit;
+    padding: 12px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+
+  /* メモモーダル */
+  #memo-modal {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.75); z-index: 3000;
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  #memo-modal.open { display: flex; }
+  #memo-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; width: 100%; max-width: 340px;
+  }
+  #memo-box h3 { font-size: 13px; color: var(--text2); margin-bottom: 14px; letter-spacing: 0.05em; }
+  #memo-box input, #memo-box textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: inherit;
+    font-size: 14px; padding: 10px; margin-bottom: 10px;
+  }
+  #memo-box input { height: 42px; }
+  #memo-box textarea { height: 80px; resize: none; }
+  #memo-box input::placeholder, #memo-box textarea::placeholder { color: var(--text3); }
+  #memo-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #memo-cancel {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text3); font-size: 13px; font-weight: 700;
+    padding: 11px; cursor: pointer; font-family: inherit;
+  }
+  #memo-save {
+    background: var(--text); border: none;
+    border-radius: 8px; color: var(--bg); font-size: 13px; font-weight: 700;
+    padding: 11px; cursor: pointer; font-family: inherit;
+  }
+
+  /* ログパネル */
+  #log-panel {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0; padding: 16px;
+    z-index: 2000; transform: translateY(100%);
+    transition: transform 0.3s ease;
+    max-height: 75dvh; overflow-y: auto;
+  }
+  #log-panel.open { transform: translateY(0); }
+  #log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  #log-panel h2 { font-size: 12px; color: var(--text3); letter-spacing: 0.1em; }
+  #close-log { background: none; border: none; color: var(--text3); font-size: 20px; cursor: pointer; padding: 0 4px; font-family: inherit; }
+
+  /* ログセクション：軌跡 */
+  .log-section-title {
+    font-size: 10px; color: var(--text3); letter-spacing: 0.1em;
+    padding: 10px 0 6px; border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  /* 軌跡ログカード */
+  .track-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  .track-card-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .track-date { font-size: 13px; font-weight: 700; color: var(--text); }
+  .track-time-range { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .track-delete { background: none; border: none; color: var(--text3); font-size: 15px; cursor: pointer; font-family: inherit; }
+  .track-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 4px;
+  }
+  .ts-item { text-align: center; }
+  .ts-label { font-size: 9px; color: var(--text3); letter-spacing: 0.04em; margin-bottom: 2px; }
+  .ts-value { font-size: 13px; font-weight: 700; color: var(--text); }
+  .ts-unit { font-size: 9px; color: var(--text3); }
+
+  /* ピンログ */
+  .log-item { border-bottom: 1px solid var(--border); padding: 10px 0; display: flex; align-items: flex-start; gap: 10px; }
+  .log-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); }
+  .log-info { flex: 1; }
+  .log-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .log-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .log-memo { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  .log-jump { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text3); font-size: 11px; cursor: pointer; padding: 2px 7px; margin-top: 5px; font-family: inherit; }
+  .log-delete { background: none; border: none; color: var(--text3); font-size: 16px; cursor: pointer; padding: 0 4px; font-family: inherit; flex-shrink: 0; }
+
+  /* Leaflet上書き */
+  .leaflet-control-zoom a { background: var(--surface) !important; color: var(--text2) !important; border-color: var(--border) !important; }
+  .leaflet-control-attribution { background: rgba(17,17,17,0.7) !important; color: var(--text3) !important; font-size: 9px !important; }
+  .leaflet-control-attribution a { color: var(--text3) !important; }
+  .leaflet-popup-content-wrapper { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
+  .leaflet-popup-tip { background: var(--surface); }
+  .popup-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .popup-meta  { font-size: 11px; color: var(--text3); margin-bottom: 3px; }
+  .popup-memo  { font-size: 12px; color: var(--text2); }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="header-left">
+    <h1>渓流マップ</h1>
+    <span id="version">v0.3</span>
+  </div>
+  <div id="gps-status">
+    <div id="gps-dot"></div>
+    <span id="gps-label">-- m</span>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<!-- 活動統計バー（記録中のみ表示） -->
+<div id="stats-bar">
+  <div id="stats-row1">
+    <div class="stat-item">
+      <div class="stat-label">開始</div>
+      <div class="stat-value" id="s-start" style="font-size:13px">--:--</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">経過時間</div>
+      <div class="stat-value" id="s-elapsed">00:00</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">距離</div>
+      <div class="stat-value"><span id="s-dist">0.0</span><span class="stat-unit">km</span></div>
+    </div>
+  </div>
+  <div id="stats-row2">
+    <div class="stat-item">
+      <div class="stat-label">↑獲得標高</div>
+      <div class="stat-value"><span id="s-up">0</span><span class="stat-unit">m</span></div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">↓下降標高</div>
+      <div class="stat-value"><span id="s-down">0</span><span class="stat-unit">m</span></div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-label">現在標高</div>
+      <div class="stat-value"><span id="s-alt">--</span><span class="stat-unit">m</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 下部コントロール2段 -->
+<div id="controls">
+  <div class="ctrl-row">
+    <button class="ctrl-btn" id="btn-track-start" onclick="toggleTracking()">
+      <span id="track-btn-icon">⏺</span>
+      <span id="track-btn-label">軌跡記録</span>
+    </button>
+    <button class="ctrl-btn" id="btn-log" onclick="openLog()">
+      ☰ ログ一覧
+      <span id="log-count"></span>
+    </button>
+  </div>
+  <div class="ctrl-row">
+    <button class="ctrl-btn" id="btn-point" onclick="openPointSheet()">＋ ポイント記録</button>
+    <button class="ctrl-btn" id="btn-clear" onclick="clearTracks()">╳ 軌跡削除</button>
+  </div>
+</div>
+
+<!-- 現在地ボタン -->
+<button id="btn-myloc" onclick="goToMyLocation()">◎</button>
+
+<!-- ポイント種別シート -->
+<div id="point-sheet">
+  <h3>記録するポイントを選択</h3>
+  <div id="point-types">
+    <button class="type-btn" onclick="startPin('entry')">
+      <span class="t-icon">▶</span>入渓
+    </button>
+    <button class="type-btn" onclick="startPin('catch')">
+      <span class="t-icon">🎣</span>釣果
+    </button>
+    <button class="type-btn" onclick="startPin('exit')">
+      <span class="t-icon">◀</span>退渓
+    </button>
+  </div>
+  <button id="sheet-cancel" onclick="closePointSheet()">キャンセル</button>
+</div>
+
+<!-- メモモーダル -->
+<div id="memo-modal">
+  <div id="memo-box">
+    <h3 id="memo-title">ポイントを記録</h3>
+    <input type="text" id="memo-name" placeholder="場所の名前（任意）">
+    <textarea id="memo-text" placeholder="メモ・釣果など（任意）"></textarea>
+    <div id="memo-buttons">
+      <button id="memo-cancel" onclick="cancelPin()">キャンセル</button>
+      <button id="memo-save" onclick="savePin()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ログパネル -->
+<div id="log-panel">
+  <div id="log-header">
+    <h2>LOG</h2>
+    <button id="close-log" onclick="closeLog()">✕</button>
+  </div>
+  <div id="log-list"></div>
+</div>
+
+<script>
+// =====================
+// 地図初期化
+// =====================
+const map = L.map('map', { center: [42.6, 141.4], zoom: 10, zoomControl: true });
+L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+  attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>',
+  maxZoom: 18
+}).addTo(map);
+
+// =====================
+// データ
+// =====================
+let pins        = JSON.parse(localStorage.getItem('keisyu_pins')   || '[]');
+let savedTracks = JSON.parse(localStorage.getItem('keisyu_tracks') || '[]');
+
+let isTracking        = false;
+let currentTrackPoints= [];   // [[lat,lng,alt], ...]
+let currentTrackLine  = null;
+let currentLatLng     = null;
+let currentAlt        = null;
+let currentHeading    = null;
+let gpsReady          = false;
+let markers           = [];
+let trackLayers       = [];
+let currentPinType    = null;
+let headingMarker     = null;
+
+// 統計
+let trackStartTime  = null;
+let totalDist       = 0;
+let elevGain        = 0;
+let elevLoss        = 0;
+let lastAlt         = null;
+let elapsedTimer    = null;
+
+// =====================
+// アイコン
+// =====================
+function makeIcon(type) {
+  const labels = { catch:'釣', entry:'入', exit:'退' };
+  return L.divIcon({
+    className: '',
+    html: `<div style="background:#1c1c1c;border:1.5px solid #666;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.5)"><span style="transform:rotate(45deg);font-size:11px;font-weight:700;color:#ccc">${labels[type]||'●'}</span></div>`,
+    iconSize:[30,30], iconAnchor:[15,30], popupAnchor:[0,-32]
+  });
+}
+
+// 進行方向マーカー
+function updateHeadingMarker(latlng, heading) {
+  const rot = (heading !== null && heading !== undefined && !isNaN(heading)) ? heading : null;
+  const html = `<div style="position:relative;width:20px;height:20px;display:flex;align-items:center;justify-content:center">
+    <div style="width:14px;height:14px;background:#ddd;border-radius:50%;border:2px solid #666;position:absolute"></div>
+    ${rot !== null ? `<div style="position:absolute;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:16px solid #fff;top:-14px;left:5px;transform-origin:5px 16px;transform:rotate(${rot}deg);opacity:0.9"></div>` : ''}
+  </div>`;
+  const icon = L.divIcon({ className:'', html, iconSize:[20,20], iconAnchor:[10,10] });
+  if (!headingMarker) {
+    headingMarker = L.marker(latlng, { icon, zIndexOffset:1000 }).addTo(map);
+  } else {
+    headingMarker.setLatLng(latlng);
+    headingMarker.setIcon(icon);
+  }
+}
+
+// =====================
+// GPS監視
+// =====================
+if (navigator.geolocation) {
+  navigator.geolocation.watchPosition(pos => {
+    gpsReady = true;
+    currentLatLng = [pos.coords.latitude, pos.coords.longitude];
+    currentAlt    = pos.coords.altitude;
+    currentHeading= pos.coords.heading;
+    document.getElementById('gps-dot').className = isTracking ? 'active recording' : 'active';
+    document.getElementById('gps-label').textContent = `±${Math.round(pos.coords.accuracy)}m`;
+    updateHeadingMarker(currentLatLng, currentHeading);
+
+    if (isTracking) {
+      const last = currentTrackPoints[currentTrackPoints.length - 1];
+      const newPt = [pos.coords.latitude, pos.coords.longitude, pos.coords.altitude];
+      if (!last || calcDist(last, newPt) > 5) {
+        currentTrackPoints.push(newPt);
+        if (currentTrackLine) currentTrackLine.setLatLngs(currentTrackPoints.map(p => [p[0],p[1]]));
+        totalDist += last ? calcDist(last, newPt) : 0;
+        // 標高計算
+        if (currentAlt !== null && lastAlt !== null) {
+          const diff = currentAlt - lastAlt;
+          if (diff > 0) elevGain += diff;
+          else          elevLoss += Math.abs(diff);
+        }
+        lastAlt = currentAlt;
+        updateStatsUI();
+      }
+    }
+  },
+  () => { document.getElementById('gps-label').textContent = 'ERR'; },
+  { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 });
+}
+
+// =====================
+// 距離計算（m）
+// =====================
+function calcDist(a, b) {
+  const R = 6371000;
+  const dLat = (b[0]-a[0]) * Math.PI/180;
+  const dLng = (b[1]-a[1]) * Math.PI/180;
+  return Math.sqrt(dLat*dLat + dLng*dLng) * R;
+}
+
+// =====================
+// 統計UI更新
+// =====================
+function updateStatsUI() {
+  document.getElementById('s-dist').textContent = (totalDist/1000).toFixed(2);
+  document.getElementById('s-up').textContent   = Math.round(elevGain);
+  document.getElementById('s-down').textContent = Math.round(elevLoss);
+  document.getElementById('s-alt').textContent  = currentAlt !== null ? Math.round(currentAlt) : '--';
+}
+
+function updateElapsed() {
+  if (!trackStartTime) return;
+  const sec = Math.floor((Date.now() - trackStartTime) / 1000);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  document.getElementById('s-elapsed').textContent =
+    h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+           : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function fmtTime(d) {
+  return d.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'});
+}
+function fmtDur(ms) {
+  const sec = Math.floor(ms/1000);
+  const h = Math.floor(sec/3600);
+  const m = Math.floor((sec%3600)/60);
+  return h > 0 ? `${h}時間${m}分` : `${m}分`;
+}
+
+function goToMyLocation() {
+  if (currentLatLng) map.setView(currentLatLng, 15);
+  else alert('GPS取得中です。');
+}
+
+// =====================
+// ポイント種別シート
+// =====================
+function openPointSheet() {
+  if (!gpsReady || !currentLatLng) { alert('GPS取得中です。'); return; }
+  document.getElementById('point-sheet').classList.add('open');
+}
+function closePointSheet() {
+  document.getElementById('point-sheet').classList.remove('open');
+}
+
+// =====================
+// ピン操作
+// =====================
+function startPin(type) {
+  closePointSheet();
+  currentPinType = type;
+  const labels = { catch:'🎣 釣果を記録', entry:'▶ 入渓ポイントを記録', exit:'◀ 退渓ポイントを記録' };
+  document.getElementById('memo-title').textContent = labels[type];
+  document.getElementById('memo-name').value = '';
+  document.getElementById('memo-text').value = '';
+  document.getElementById('memo-modal').classList.add('open');
+  setTimeout(() => document.getElementById('memo-name').focus(), 150);
+}
+function cancelPin() {
+  document.getElementById('memo-modal').classList.remove('open');
+  currentPinType = null;
+}
+function savePin() {
+  if (!currentLatLng || !currentPinType) return;
+  const now = new Date();
+  const pin = {
+    id: Date.now(), type: currentPinType,
+    lat: currentLatLng[0], lng: currentLatLng[1],
+    name: document.getElementById('memo-name').value.trim() || typeLabel(currentPinType),
+    memo: document.getElementById('memo-text').value.trim(),
+    date: now.toLocaleDateString('ja-JP'),
+    time: now.toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'})
+  };
+  pins.push(pin);
+  localStorage.setItem('keisyu_pins', JSON.stringify(pins));
+  addMarker(pin);
+  document.getElementById('memo-modal').classList.remove('open');
+  map.setView(currentLatLng, Math.max(map.getZoom(), 14));
+  currentPinType = null;
+  updateLogCount();
+}
+function typeLabel(t) { return {catch:'釣果',entry:'入渓',exit:'退渓'}[t]||t; }
+function addMarker(pin) {
+  const m = L.marker([pin.lat, pin.lng], { icon: makeIcon(pin.type) }).addTo(map)
+    .bindPopup(`<div class="popup-title">${pin.name}</div><div class="popup-meta">${pin.date} ${pin.time}</div>${pin.memo?`<div class="popup-memo">${pin.memo}</div>`:''}`);
+  markers.push({ id: pin.id, marker: m });
+}
+
+// =====================
+// 軌跡記録
+// =====================
+function toggleTracking() {
+  if (!isTracking) {
+    if (!gpsReady) { alert('GPS取得中です。'); return; }
+    // 開始
+    isTracking = true;
+    trackStartTime = Date.now();
+    totalDist = 0; elevGain = 0; elevLoss = 0; lastAlt = currentAlt;
+    currentTrackPoints = currentLatLng ? [[...currentLatLng, currentAlt]] : [];
+    currentTrackLine = L.polyline(currentTrackPoints.map(p=>[p[0],p[1]]), {
+      color:'#9b3fa0', weight:3, opacity:0.9, dashArray:'8,5'
+    }).addTo(map);
+    document.getElementById('btn-track-start').classList.add('recording');
+    document.getElementById('track-btn-icon').textContent = '⏹';
+    document.getElementById('track-btn-label').textContent = '記録停止';
+    document.getElementById('stats-bar').classList.add('show');
+    document.getElementById('s-start').textContent = fmtTime(new Date(trackStartTime));
+    elapsedTimer = setInterval(updateElapsed, 1000);
+    updateStatsUI();
+  } else {
+    // 停止
+    isTracking = false;
+    clearInterval(elapsedTimer);
+    const endTime = Date.now();
+    document.getElementById('btn-track-start').classList.remove('recording');
+    document.getElementById('track-btn-icon').textContent = '⏺';
+    document.getElementById('track-btn-label').textContent = '軌跡記録';
+    document.getElementById('stats-bar').classList.remove('show');
+    document.getElementById('gps-dot').className = 'active';
+
+    if (currentTrackPoints.length > 1) {
+      const trackRecord = {
+        id: Date.now(),
+        points: [...currentTrackPoints],
+        startTime: trackStartTime,
+        endTime,
+        dist: totalDist,
+        elevGain,
+        elevLoss,
+        date: new Date(trackStartTime).toLocaleDateString('ja-JP'),
+        startStr: fmtTime(new Date(trackStartTime)),
+        endStr: fmtTime(new Date(endTime)),
+        durStr: fmtDur(endTime - trackStartTime)
+      };
+      savedTracks.push(trackRecord);
+      localStorage.setItem('keisyu_tracks', JSON.stringify(savedTracks));
+      trackLayers.push({ id: trackRecord.id, layer: currentTrackLine });
+    } else {
+      if (currentTrackLine) map.removeLayer(currentTrackLine);
+    }
+    currentTrackLine = null;
+    currentTrackPoints = [];
+    trackStartTime = null;
+  }
+}
+
+// 軌跡削除
+function clearTracks() {
+  if (!confirm('保存済みの軌跡を全て削除しますか？\n（ピンは残ります）')) return;
+  savedTracks = [];
+  localStorage.setItem('keisyu_tracks', '[]');
+  trackLayers.forEach(t => map.removeLayer(t.layer));
+  trackLayers = [];
+  if (currentTrackLine) { map.removeLayer(currentTrackLine); currentTrackLine = null; }
+  currentTrackPoints = [];
+}
+
+// =====================
+// ログパネル
+// =====================
+function openLog() { renderLog(); document.getElementById('log-panel').classList.add('open'); }
+function closeLog() { document.getElementById('log-panel').classList.remove('open'); }
+
+function renderLog() {
+  const list = document.getElementById('log-list');
+  let html = '';
+
+  // 軌跡ログ
+  if (savedTracks.length > 0) {
+    html += `<div class="log-section-title">TRACKS</div>`;
+    [...savedTracks].reverse().forEach(t => {
+      html += `
+      <div class="track-card">
+        <div class="track-card-header">
+          <div>
+            <div class="track-date">${t.date}</div>
+            <div class="track-time-range">${t.startStr} → ${t.endStr}　${t.durStr}</div>
+          </div>
+          <button class="track-delete" onclick="deleteTrack(${t.id})">✕</button>
+        </div>
+        <div class="track-stats">
+          <div class="ts-item">
+            <div class="ts-label">距離</div>
+            <div class="ts-value">${(t.dist/1000).toFixed(2)}<span class="ts-unit">km</span></div>
+          </div>
+          <div class="ts-item">
+            <div class="ts-label">時間</div>
+            <div class="ts-value" style="font-size:11px">${t.durStr}</div>
+          </div>
+          <div class="ts-item">
+            <div class="ts-label">↑獲得</div>
+            <div class="ts-value">${Math.round(t.elevGain)}<span class="ts-unit">m</span></div>
+          </div>
+          <div class="ts-item">
+            <div class="ts-label">↓下降</div>
+            <div class="ts-value">${Math.round(t.elevLoss)}<span class="ts-unit">m</span></div>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  // ピンログ
+  if (pins.length > 0) {
+    html += `<div class="log-section-title">POINTS</div>`;
+    html += [...pins].reverse().map(p => `
+      <div class="log-item">
+        <span class="log-badge">${typeLabel(p.type)}</span>
+        <div class="log-info">
+          <div class="log-name">${p.name}</div>
+          <div class="log-meta">${p.date} ${p.time}</div>
+          ${p.memo ? `<div class="log-memo">${p.memo}</div>` : ''}
+          <button class="log-jump" onclick="jumpToPin(${p.lat},${p.lng})">地図で見る</button>
+        </div>
+        <button class="log-delete" onclick="deletePin(${p.id})">✕</button>
+      </div>`).join('');
+  }
+
+  if (!html) html = '<div style="color:var(--text3);font-size:13px;padding:16px 0;text-align:center">記録なし</div>';
+  list.innerHTML = html;
+}
+
+function jumpToPin(lat, lng) { closeLog(); map.setView([lat,lng], 15); }
+
+function deletePin(id) {
+  pins = pins.filter(p => p.id !== id);
+  localStorage.setItem('keisyu_pins', JSON.stringify(pins));
+  const idx = markers.findIndex(m => m.id === id);
+  if (idx !== -1) { map.removeLayer(markers[idx].marker); markers.splice(idx,1); }
+  renderLog(); updateLogCount();
+}
+
+function deleteTrack(id) {
+  savedTracks = savedTracks.filter(t => t.id !== id);
+  localStorage.setItem('keisyu_tracks', JSON.stringify(savedTracks));
+  const idx = trackLayers.findIndex(t => t.id === id);
+  if (idx !== -1) { map.removeLayer(trackLayers[idx].layer); trackLayers.splice(idx,1); }
+  renderLog();
+}
+
+function updateLogCount() {
+  const el = document.getElementById('log-count');
+  const total = pins.length + savedTracks.length;
+  el.textContent = total;
+  el.style.display = total > 0 ? 'flex' : 'none';
+}
+
+// =====================
+// 初期ロード
+// =====================
+pins.forEach(p => addMarker(p));
+savedTracks.forEach(t => {
+  const l = L.polyline(t.points.map(p=>[p[0],p[1]]), {
+    color:'#9b3fa0', weight:3, opacity:0.6, dashArray:'8,5'
+  }).addTo(map);
+  trackLayers.push({ id: t.id, layer: l });
+});
+updateLogCount();
+
+navigator.geolocation && navigator.geolocation.getCurrentPosition(
+  pos => map.setView([pos.coords.latitude, pos.coords.longitude], 13),
+  () => {}
+);
+</script>
+</body>
+</html>
