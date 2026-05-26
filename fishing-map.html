@@ -7,127 +7,111 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-:root {
-  --bg:#111; --surface:#1c1c1c; --surface2:#252525;
-  --border:#333; --border2:#444;
-  --text:#e0e0e0; --text2:#888; --text3:#555;
-  --track:#9b3fa0; --blue:#2e86de;
-  --peek:90px;
-}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{
   font-family:'Hiragino Sans','Hiragino Kaku Gothic ProN',sans-serif;
-  background:var(--bg);color:var(--text);
+  background:#111;color:#e0e0e0;
   height:100dvh;overflow:hidden;position:relative;
+  display:flex;flex-direction:column;
 }
 
 /* ヘッダー */
 #header{
-  position:absolute;top:0;left:0;right:0;height:49px;
-  background:var(--surface);border-bottom:1px solid var(--border);
+  flex-shrink:0;height:49px;
+  background:#1c1c1c;border-bottom:1px solid #333;
   padding:0 14px;display:flex;align-items:center;justify-content:space-between;
   z-index:1000;
 }
 #header-left{display:flex;align-items:baseline;gap:8px}
 #header h1{font-size:15px;font-weight:700;letter-spacing:.08em}
-#version{font-size:10px;color:var(--text3)}
+#version{font-size:10px;color:#555}
 #gps-status{display:flex;align-items:center;gap:6px}
-#gps-dot{width:7px;height:7px;border-radius:50%;background:#444;flex-shrink:0;will-change:opacity}
+#gps-dot{width:7px;height:7px;border-radius:50%;background:#444;flex-shrink:0}
 #gps-dot.active{background:#888;animation:pulse 2s infinite}
-#gps-dot.rec{background:var(--track);animation:pulse 1s infinite}
-#gps-label{font-size:14px;color:var(--text2);font-weight:500;min-width:58px;text-align:right}
+#gps-dot.rec{background:#9b3fa0;animation:pulse 1s infinite}
+#gps-label{font-size:14px;color:#888;font-weight:500;min-width:58px;text-align:right}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-/* 地図（通常サイズ） */
-#map{
-  position:absolute;
-  top:49px; left:0; right:0;
-  bottom:var(--peek);
-  z-index:1;
-}
+/* 地図 */
+#map{flex:1;z-index:1;min-height:0}
 
 /* 現在地ボタン */
 #btn-myloc{
-  position:absolute;left:14px;
-  bottom:calc(var(--peek) + 14px);
+  position:absolute;left:14px;bottom:104px;
   z-index:900;
-  background:var(--surface);border:1px solid var(--border2);
+  background:#1c1c1c;border:1px solid #444;
   border-radius:10px;width:44px;height:44px;font-size:18px;
   cursor:pointer;display:flex;align-items:center;justify-content:center;
   box-shadow:0 2px 8px rgba(0,0,0,.5);
-  transition:opacity .2s ease, z-index 0s;
-  will-change:opacity;
+  transition:opacity .2s ease;
 }
-#btn-myloc.behind{opacity:0;pointer-events:none;z-index:0}
+#btn-myloc.behind{opacity:0;pointer-events:none}
 
 /* ボトムシート */
 #sheet{
-  position:absolute;left:0;right:0;bottom:0;
+  flex-shrink:0;
   z-index:800;
-  background:var(--surface);border-top:1px solid var(--border);
+  background:#1c1c1c;border-top:1px solid #333;
   border-radius:16px 16px 0 0;
-  will-change:transform;
 }
 #sheet-handle-area{
   padding:10px 0 0;display:flex;flex-direction:column;align-items:center;
   cursor:pointer;user-select:none;
 }
-#sheet-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin-bottom:10px}
+#sheet-handle{width:36px;height:4px;background:#444;border-radius:2px;margin-bottom:10px}
 
 /* ミニ統計 */
 #mini-stats{
   display:flex;justify-content:space-around;
-  padding:0 14px 12px;border-bottom:1px solid var(--border);
+  padding:0 14px 12px;border-bottom:1px solid #333;
 }
 .ms{text-align:center;flex:1}
-.ms-l{font-size:9px;color:var(--text3);letter-spacing:.05em;margin-bottom:2px}
+.ms-l{font-size:9px;color:#555;letter-spacing:.05em;margin-bottom:2px}
 .ms-v{font-size:15px;font-weight:700}
-.ms-u{font-size:9px;color:var(--text3)}
+.ms-u{font-size:9px;color:#555}
 
 /* シートボタン */
 #sheet-btns{
   display:grid;grid-template-columns:1fr 1fr;gap:8px;
-  padding:0 12px;
-  max-height:0;overflow:hidden;
+  overflow:hidden;max-height:0;
   transition:max-height .28s cubic-bezier(.4,0,.2,1),padding .28s cubic-bezier(.4,0,.2,1);
+  padding:0 12px;
 }
 #sheet.open #sheet-btns{max-height:160px;padding:12px 12px 28px}
 .sb{
-  background:var(--surface2);border:1px solid var(--border2);
-  border-radius:10px;color:var(--text2);
+  background:#252525;border:1px solid #444;
+  border-radius:10px;color:#888;
   font-size:13px;font-weight:700;font-family:inherit;
   padding:13px 8px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;gap:6px;
   transition:transform .12s ease,background .15s,border-color .15s,color .15s;
-  will-change:transform;
 }
 .sb:active{transform:scale(.97)}
-#btn-track.rec{background:rgba(155,63,160,.15);border-color:var(--track);color:var(--track)}
+#btn-track.rec{background:rgba(155,63,160,.15);border-color:#9b3fa0;color:#9b3fa0}
 #btn-log-open{position:relative}
 #log-count{
   position:absolute;top:-5px;right:-5px;
-  background:var(--text2);color:var(--bg);
+  background:#888;color:#111;
   font-size:10px;font-weight:700;border-radius:50%;
   width:17px;height:17px;display:none;align-items:center;justify-content:center;
 }
-#btn-point{color:var(--text);border-color:#555}
-#btn-clr{color:var(--text3)}
+#btn-point{color:#e0e0e0;border-color:#555}
+#btn-clr{color:#555}
 
 /* ポイントシート */
 #pt-sheet{
   position:absolute;bottom:0;left:0;right:0;z-index:2500;
-  background:var(--surface);border-top:1px solid var(--border);
+  background:#1c1c1c;border-top:1px solid #333;
   border-radius:16px 16px 0 0;padding:16px 12px 36px;
   transform:translateY(100%);
   transition:transform .25s cubic-bezier(.4,0,.2,1);
-  will-change:transform;
 }
 #pt-sheet.open{transform:translateY(0)}
-#pt-sheet h3{font-size:11px;color:var(--text3);text-align:center;margin-bottom:14px;letter-spacing:.1em}
+#pt-sheet h3{font-size:11px;color:#555;text-align:center;margin-bottom:14px;letter-spacing:.1em}
 #pt-types{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .tb{
-  background:var(--surface2);border:1px solid var(--border);
-  border-radius:10px;color:var(--text);
+  background:#252525;border:1px solid #333;
+  border-radius:10px;color:#e0e0e0;
   font-size:12px;font-weight:700;font-family:inherit;
   padding:14px 4px;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:4px;
@@ -137,8 +121,8 @@ body{
 .tb .ti{font-size:20px}
 #pt-cancel{
   margin-top:10px;width:100%;background:none;
-  border:1px solid var(--border);border-radius:10px;
-  color:var(--text3);font-size:13px;font-weight:700;
+  border:1px solid #333;border-radius:10px;
+  color:#555;font-size:13px;font-weight:700;
   font-family:inherit;padding:12px;cursor:pointer;
 }
 
@@ -149,98 +133,83 @@ body{
 }
 #memo-wrap.open{display:flex}
 #memo-box{
-  background:var(--surface);border:1px solid var(--border);
+  background:#1c1c1c;border:1px solid #333;
   border-radius:14px;padding:20px;width:100%;max-width:340px;
 }
-#memo-box h3{font-size:13px;color:var(--text2);margin-bottom:14px}
+#memo-box h3{font-size:13px;color:#888;margin-bottom:14px}
 .m-inp{
-  width:100%;background:var(--bg);border:1px solid var(--border);
-  border-radius:8px;color:var(--text);font-family:inherit;
+  width:100%;background:#111;border:1px solid #333;
+  border-radius:8px;color:#e0e0e0;font-family:inherit;
   font-size:14px;padding:10px;margin-bottom:10px;
 }
 #memo-name{height:42px}
 #memo-text{height:80px;resize:none}
-.m-inp::placeholder{color:var(--text3)}
+.m-inp::placeholder{color:#555}
 #memo-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.m-cancel{
-  background:var(--surface2);border:1px solid var(--border);
-  border-radius:8px;color:var(--text3);font-size:13px;font-weight:700;
-  padding:11px;cursor:pointer;font-family:inherit;
-}
-.m-save{
-  background:var(--text);border:none;border-radius:8px;
-  color:var(--bg);font-size:13px;font-weight:700;
-  padding:11px;cursor:pointer;font-family:inherit;
-}
+.m-cancel{background:#252525;border:1px solid #333;border-radius:8px;color:#555;font-size:13px;font-weight:700;padding:11px;cursor:pointer;font-family:inherit}
+.m-save{background:#e0e0e0;border:none;border-radius:8px;color:#111;font-size:13px;font-weight:700;padding:11px;cursor:pointer;font-family:inherit}
 
 /* ログ画面 */
 #log-screen{
-  position:absolute;inset:0;background:var(--bg);
+  position:absolute;inset:0;background:#111;
   z-index:4000;display:none;flex-direction:column;
 }
 #log-screen.open{display:flex}
 #log-hdr{
-  background:var(--surface);border-bottom:1px solid var(--border);
+  background:#1c1c1c;border-bottom:1px solid #333;
   padding:12px 14px;display:flex;align-items:center;gap:12px;flex-shrink:0;
 }
-#btn-back{background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;font-family:inherit;padding:0 4px;line-height:1}
+#btn-back{background:none;border:none;color:#888;font-size:22px;cursor:pointer;font-family:inherit;padding:0 4px;line-height:1}
 #log-hdr h2{font-size:15px;font-weight:700}
 #log-body{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
 
 /* セッションカード */
-.sc{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden}
-.sc-hdr{padding:12px 14px;display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer;border-bottom:1px solid var(--border)}
+.sc{background:#1c1c1c;border:1px solid #333;border-radius:12px;margin-bottom:10px;overflow:hidden}
+.sc-hdr{padding:12px 14px;display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer;border-bottom:1px solid #333}
 .sc-title{font-size:14px;font-weight:700}
-.sc-sub{font-size:11px;color:var(--text3);margin-top:2px}
-.sc-chev{color:var(--text3);font-size:14px;transition:transform .2s ease}
+.sc-sub{font-size:11px;color:#555;margin-top:2px}
+.sc-chev{color:#555;font-size:14px;transition:transform .2s ease}
 .sc.open .sc-chev{transform:rotate(180deg)}
-.sc-stats{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;padding:10px 14px;border-bottom:1px solid var(--border)}
+.sc-stats{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;padding:10px 14px;border-bottom:1px solid #333}
 .ss{text-align:center}
-.ss-l{font-size:9px;color:var(--text3);margin-bottom:2px}
+.ss-l{font-size:9px;color:#555;margin-bottom:2px}
 .ss-v{font-size:13px;font-weight:700}
-.ss-u{font-size:9px;color:var(--text3)}
-.sc-memo{padding:10px 14px;border-bottom:1px solid var(--border)}
-.sc-memo-l{font-size:10px;color:var(--text3);margin-bottom:6px;letter-spacing:.06em}
-.sc-memo-t{
-  font-size:13px;color:var(--text2);cursor:pointer;
-  min-height:32px;padding:6px 8px;
-  background:var(--surface2);border-radius:6px;border:1px solid var(--border);
-}
-.sc-memo-t.empty{color:var(--text3);font-style:italic}
+.ss-u{font-size:9px;color:#555}
+.sc-memo{padding:10px 14px;border-bottom:1px solid #333}
+.sc-memo-l{font-size:10px;color:#555;margin-bottom:6px;letter-spacing:.06em}
+.sc-memo-t{font-size:13px;color:#888;cursor:pointer;min-height:32px;padding:6px 8px;background:#252525;border-radius:6px;border:1px solid #333}
+.sc-memo-t.empty{color:#555;font-style:italic}
 .sc-pts{display:none;padding:0 14px 4px}
 .sc.open .sc-pts{display:block}
-.pi{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.pi{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #333}
 .pi:last-child{border-bottom:none}
-.pi-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap;flex-shrink:0;background:var(--surface2);border:1px solid var(--border2);color:var(--text2)}
+.pi-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap;flex-shrink:0;background:#252525;border:1px solid #444;color:#888}
 .pi-info{flex:1}
 .pi-name{font-size:13px;font-weight:700}
-.pi-meta{font-size:11px;color:var(--text3);margin-top:1px}
-.pi-memo{font-size:12px;color:var(--text2);margin-top:3px}
-.pi-jump{background:none;border:1px solid var(--border);border-radius:4px;color:var(--text3);font-size:11px;cursor:pointer;padding:2px 7px;margin-top:4px;font-family:inherit}
-.pi-del{background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;font-family:inherit;flex-shrink:0}
-.sc-del{width:100%;background:none;border:none;border-top:1px solid var(--border);color:#c0392b;font-size:13px;font-weight:700;font-family:inherit;padding:12px;cursor:pointer;text-align:center}
+.pi-meta{font-size:11px;color:#555;margin-top:1px}
+.pi-memo{font-size:12px;color:#888;margin-top:3px}
+.pi-jump{background:none;border:1px solid #333;border-radius:4px;color:#555;font-size:11px;cursor:pointer;padding:2px 7px;margin-top:4px;font-family:inherit}
+.pi-del{background:none;border:none;color:#555;font-size:15px;cursor:pointer;font-family:inherit;flex-shrink:0}
+.sc-del{width:100%;background:none;border:none;border-top:1px solid #333;color:#c0392b;font-size:13px;font-weight:700;font-family:inherit;padding:12px;cursor:pointer;text-align:center}
 
 /* コメントモーダル */
-#cmt-wrap{
-  position:absolute;inset:0;background:rgba(0,0,0,.75);
-  z-index:5000;display:none;align-items:center;justify-content:center;padding:20px;
-}
+#cmt-wrap{position:absolute;inset:0;background:rgba(0,0,0,.75);z-index:5000;display:none;align-items:center;justify-content:center;padding:20px}
 #cmt-wrap.open{display:flex}
-#cmt-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;width:100%;max-width:340px}
-#cmt-box h3{font-size:13px;color:var(--text2);margin-bottom:12px}
-#cmt-inp{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px;padding:10px;margin-bottom:12px;height:100px;resize:none}
-#cmt-inp::placeholder{color:var(--text3)}
+#cmt-box{background:#1c1c1c;border:1px solid #333;border-radius:14px;padding:20px;width:100%;max-width:340px}
+#cmt-box h3{font-size:13px;color:#888;margin-bottom:12px}
+#cmt-inp{width:100%;background:#111;border:1px solid #333;border-radius:8px;color:#e0e0e0;font-family:inherit;font-size:14px;padding:10px;margin-bottom:12px;height:100px;resize:none}
+#cmt-inp::placeholder{color:#555}
 #cmt-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
-/* Leaflet上書き */
-.leaflet-control-zoom a{background:var(--surface)!important;color:var(--text2)!important;border-color:var(--border)!important}
-.leaflet-control-attribution{background:rgba(17,17,17,.7)!important;color:var(--text3)!important;font-size:9px!important}
-.leaflet-control-attribution a{color:var(--text3)!important}
-.leaflet-popup-content-wrapper{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.6)}
-.leaflet-popup-tip{background:var(--surface)}
+/* Leaflet */
+.leaflet-control-zoom a{background:#1c1c1c!important;color:#888!important;border-color:#333!important}
+.leaflet-control-attribution{background:rgba(17,17,17,.7)!important;color:#555!important;font-size:9px!important}
+.leaflet-control-attribution a{color:#555!important}
+.leaflet-popup-content-wrapper{background:#1c1c1c;color:#e0e0e0;border:1px solid #333;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.6)}
+.leaflet-popup-tip{background:#1c1c1c}
 .pu-title{font-size:13px;font-weight:700;margin-bottom:3px}
-.pu-meta{font-size:11px;color:var(--text3);margin-bottom:3px}
-.pu-memo{font-size:12px;color:var(--text2)}
+.pu-meta{font-size:11px;color:#555;margin-bottom:3px}
+.pu-memo{font-size:12px;color:#888}
 </style>
 </head>
 <body>
@@ -262,7 +231,6 @@ body{
   <span id="loc-icon">◎</span>
 </button>
 
-<!-- ボトムシート -->
 <div id="sheet">
   <div id="sheet-handle-area" onclick="toggleSheet()">
     <div id="sheet-handle"></div>
@@ -285,7 +253,6 @@ body{
   </div>
 </div>
 
-<!-- ポイントシート -->
 <div id="pt-sheet">
   <h3>記録するポイントを選択</h3>
   <div id="pt-types">
@@ -296,7 +263,6 @@ body{
   <button id="pt-cancel" onclick="closePtSheet()">キャンセル</button>
 </div>
 
-<!-- メモモーダル -->
 <div id="memo-wrap">
   <div id="memo-box">
     <h3 id="memo-title">ポイントを記録</h3>
@@ -309,7 +275,6 @@ body{
   </div>
 </div>
 
-<!-- ログ画面 -->
 <div id="log-screen">
   <div id="log-hdr">
     <button id="btn-back" onclick="closeLog()">‹</button>
@@ -318,7 +283,6 @@ body{
   <div id="log-body"></div>
 </div>
 
-<!-- コメントモーダル -->
 <div id="cmt-wrap">
   <div id="cmt-box">
     <h3>コメントを編集</h3>
@@ -331,38 +295,24 @@ body{
 </div>
 
 <script>
-// ========================
-// 地図初期化
-// ========================
-const BOUNDS = L.latLngBounds(
-  L.latLng(42.40, 140.40),
-  L.latLng(43.30, 141.70)
-);
-
-const map = L.map('map', {
-  center: [42.7, 141.0],
-  zoom: 11,
-  minZoom: 10,
-  maxZoom: 17,
-  maxBounds: BOUNDS,
-  maxBoundsViscosity: 0.9,
-  zoomControl: true
+// 地図
+const BOUNDS = L.latLngBounds(L.latLng(42.40,140.40), L.latLng(43.30,141.70));
+const map = L.map('map',{
+  center:[42.7,141.0], zoom:11,
+  minZoom:10, maxZoom:17,
+  maxBounds:BOUNDS, maxBoundsViscosity:0.9,
+  zoomControl:true
 });
-
-L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-  attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>',
-  maxZoom: 17,
-  keepBuffer: 3
+L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',{
+  attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>',
+  maxZoom:17, keepBuffer:3
 }).addTo(map);
 
-// 手動操作で解除モードへ
-map.on('dragstart', () => { if (locMode > 0) setLocMode(0); });
-map.on('zoomstart', e => { if (e.originalEvent && locMode > 0) setLocMode(0); });
+map.on('dragstart', ()=>{ if(locMode>0) setLocMode(0); });
+map.on('zoomstart', e=>{ if(e.originalEvent && locMode>0) setLocMode(0); });
 
-// ========================
 // データ
-// ========================
-let sessions      = JSON.parse(localStorage.getItem('keisyu_v5') || '[]');
+let sessions      = JSON.parse(localStorage.getItem('keisyu_v5')||'[]');
 let activeSession = null;
 let isTracking    = false;
 let trackPts      = [];
@@ -375,360 +325,214 @@ let markers       = {};
 let trackLayers   = {};
 let pinType       = null;
 let editCmtId     = null;
+let startTime     = null;
+let totDist=0, elevUp=0, elevDn=0, lastAlt=null;
+let eTimer        = null;
 
-// 統計
-let startTime = null;
-let totDist   = 0;
-let elevUp    = 0;
-let elevDn    = 0;
-let lastAlt   = null;
-let eTimer    = null;
-
-// ========================
-// ロケーションモード（2段階）
-// 0=解除 1=追従
-// ========================
+// ロケーションモード 0=解除 1=追従
 let locMode = 0;
-
-function setLocMode(m) {
+function setLocMode(m){
   locMode = m;
-  document.getElementById('loc-icon').textContent = m === 0 ? '◎' : '▲';
-  if (m > 0 && curLatLng) map.panTo(curLatLng, {animate: true, duration: 0.3});
+  document.getElementById('loc-icon').textContent = m===0 ? '◎' : '▲';
+  if(m>0 && curLatLng) map.panTo(curLatLng,{animate:true,duration:0.3});
 }
-function cycleLocMode() { setLocMode(locMode === 0 ? 1 : 0); }
+function cycleLocMode(){ setLocMode(locMode===0?1:0); }
 
-// ========================
-// 現在地マーカー（CircleMarker + 扇SVG）
-// ========================
-let locMarker  = null;  // CircleMarker（青丸）
-let fanMarker  = null;  // DivIcon（扇）
-let accCircle  = null;  // Circle（精度円）
+// 現在地マーカー
+let locMarker=null, fanMarker=null, accCircle=null;
 
-function updateLocMarker() {
-  if (!curLatLng) return;
+function updateLocMarker(){
+  if(!curLatLng) return;
+  if(!accCircle){
+    accCircle = L.circle(curLatLng,{radius:20,color:'rgba(46,134,222,0.4)',fillColor:'rgba(46,134,222,0.1)',fillOpacity:1,weight:1,interactive:false}).addTo(map);
+  } else { accCircle.setLatLng(curLatLng); }
 
-  // 精度円（初回のみ作成）
-  if (!accCircle) {
-    accCircle = L.circle(curLatLng, {
-      radius: 20,
-      color: 'rgba(46,134,222,0.4)',
-      fillColor: 'rgba(46,134,222,0.1)',
-      fillOpacity: 1,
-      weight: 1,
-      interactive: false
-    }).addTo(map);
-  } else {
-    accCircle.setLatLng(curLatLng);
-  }
+  if(!locMarker){
+    locMarker = L.circleMarker(curLatLng,{radius:9,color:'#fff',fillColor:'#2e86de',fillOpacity:1,weight:2.5,interactive:false,zIndexOffset:1000}).addTo(map);
+  } else { locMarker.setLatLng(curLatLng); }
 
-  // 青丸（CircleMarker）
-  if (!locMarker) {
-    locMarker = L.circleMarker(curLatLng, {
-      radius: 9,
-      color: '#fff',
-      fillColor: '#2e86de',
-      fillOpacity: 1,
-      weight: 2.5,
-      interactive: false,
-      zIndexOffset: 1000
-    }).addTo(map);
-  } else {
-    locMarker.setLatLng(curLatLng);
-  }
-
-  // 扇（進行方向）
-  updateFanMarker();
+  updateFan();
 }
 
-function updateFanMarker() {
-  if (!curLatLng) return;
-  const hasDir = curHeading !== null && !isNaN(curHeading);
-
-  if (!hasDir) {
-    if (fanMarker) { map.removeLayer(fanMarker); fanMarker = null; }
-    return;
-  }
-
-  const a = curHeading; // 北=0, 時計回り
-  const spread = 50;
-  const R = 48, cx = 60, cy = 60;
-  const toRad = d => (d - 90) * Math.PI / 180;
-  const a1 = toRad(a - spread/2);
-  const a2 = toRad(a + spread/2);
-  const x1 = (cx + R * Math.cos(a1)).toFixed(1);
-  const y1 = (cy + R * Math.sin(a1)).toFixed(1);
-  const x2 = (cx + R * Math.cos(a2)).toFixed(1);
-  const y2 = (cy + R * Math.sin(a2)).toFixed(1);
-
-  const svg = `<svg width="120" height="120" viewBox="0 0 120 120" style="position:absolute;top:0;left:0;pointer-events:none">
-    <path d="M${cx},${cy} L${x1},${y1} A${R},${R} 0 0,1 ${x2},${y2} Z"
-      fill="rgba(46,134,222,0.4)" />
-  </svg>`;
-
-  const icon = L.divIcon({
-    className: '',
-    html: `<div style="position:relative;width:120px;height:120px">${svg}</div>`,
-    iconSize: [120, 120],
-    iconAnchor: [60, 60],
-    interactive: false
-  });
-
-  if (!fanMarker) {
-    fanMarker = L.marker(curLatLng, {icon, zIndexOffset: 999, interactive: false}).addTo(map);
-  } else {
-    fanMarker.setLatLng(curLatLng);
-    fanMarker.setIcon(icon);
-  }
+function updateFan(){
+  if(!curLatLng) return;
+  const ok = curHeading!==null && !isNaN(curHeading);
+  if(!ok){ if(fanMarker){map.removeLayer(fanMarker);fanMarker=null;} return; }
+  const R=48,cx=60,cy=60,spread=50;
+  const toRad = d=>(d-90)*Math.PI/180;
+  const a1=toRad(curHeading-spread/2), a2=toRad(curHeading+spread/2);
+  const x1=(cx+R*Math.cos(a1)).toFixed(1), y1=(cy+R*Math.sin(a1)).toFixed(1);
+  const x2=(cx+R*Math.cos(a2)).toFixed(1), y2=(cy+R*Math.sin(a2)).toFixed(1);
+  const svg=`<svg width="120" height="120" viewBox="0 0 120 120" style="position:absolute;top:0;left:0;pointer-events:none"><path d="M${cx},${cy} L${x1},${y1} A${R},${R} 0 0,1 ${x2},${y2} Z" fill="rgba(46,134,222,0.4)"/></svg>`;
+  const icon=L.divIcon({className:'',html:`<div style="position:relative;width:120px;height:120px">${svg}</div>`,iconSize:[120,120],iconAnchor:[60,60],interactive:false});
+  if(!fanMarker){
+    fanMarker=L.marker(curLatLng,{icon,zIndexOffset:999,interactive:false}).addTo(map);
+  } else { fanMarker.setLatLng(curLatLng); fanMarker.setIcon(icon); }
 }
 
-// ========================
-// GPS（throttle付き）
-// ========================
-let lastGpsUpdate = 0;
-const GPS_THROTTLE = 800;
-
-if (navigator.geolocation) {
-  navigator.geolocation.watchPosition(pos => {
-    const now = Date.now();
-    gpsReady   = true;
-    curLatLng  = [pos.coords.latitude, pos.coords.longitude];
-    curAlt     = pos.coords.altitude;
-    curHeading = pos.coords.heading;
-
-    document.getElementById('gps-dot').className = isTracking ? 'rec' : 'active';
-    document.getElementById('gps-label').textContent = `±${Math.round(pos.coords.accuracy)}m`;
-
-    if (now - lastGpsUpdate < GPS_THROTTLE) return;
-    lastGpsUpdate = now;
-
+// GPS
+let lastGpsUpdate=0;
+if(navigator.geolocation){
+  navigator.geolocation.watchPosition(pos=>{
+    const now=Date.now();
+    gpsReady=true;
+    curLatLng=[pos.coords.latitude,pos.coords.longitude];
+    curAlt=pos.coords.altitude;
+    curHeading=pos.coords.heading;
+    document.getElementById('gps-dot').className=isTracking?'rec':'active';
+    document.getElementById('gps-label').textContent=`±${Math.round(pos.coords.accuracy)}m`;
+    if(now-lastGpsUpdate<800) return;
+    lastGpsUpdate=now;
     updateLocMarker();
-    if (locMode > 0) map.panTo(curLatLng, {animate: true, duration: 0.25, noMoveStart: true});
-
-    // 軌跡記録
-    if (isTracking) {
-      const last = trackPts[trackPts.length - 1];
-      const newPt = [pos.coords.latitude, pos.coords.longitude, curAlt || 0];
-      if (!last || calcDist(last, newPt) > 5) {
-        trackPts.push(newPt);
-        if (trackLine) trackLine.addLatLng([newPt[0], newPt[1]]);
-        totDist += last ? calcDist(last, newPt) : 0;
-        if (curAlt !== null && lastAlt !== null) {
-          const d = curAlt - lastAlt;
-          if (d > 1) elevUp += d;
-          else if (d < -1) elevDn += Math.abs(d);
-        }
-        lastAlt = curAlt;
-        updateMiniStats();
+    if(locMode>0) map.panTo(curLatLng,{animate:true,duration:0.25,noMoveStart:true});
+    if(isTracking){
+      const last=trackPts[trackPts.length-1];
+      const np=[pos.coords.latitude,pos.coords.longitude,curAlt||0];
+      if(!last||calcDist(last,np)>5){
+        trackPts.push(np);
+        if(trackLine) trackLine.addLatLng([np[0],np[1]]);
+        totDist+=last?calcDist(last,np):0;
+        if(curAlt!==null&&lastAlt!==null){const d=curAlt-lastAlt;if(d>1)elevUp+=d;else if(d<-1)elevDn+=Math.abs(d);}
+        lastAlt=curAlt;
+        updateMini();
       }
     }
-  },
-  () => { document.getElementById('gps-label').textContent = 'ERR'; },
-  {enableHighAccuracy: true, maximumAge: 10000, timeout: 20000});
+  },()=>{document.getElementById('gps-label').textContent='ERR';},{enableHighAccuracy:true,maximumAge:10000,timeout:20000});
 }
 
-function calcDist(a, b) {
-  const R = 6371000;
-  const dLat = (b[0]-a[0]) * Math.PI/180;
-  const dLng = (b[1]-a[1]) * Math.PI/180;
-  return Math.sqrt(dLat*dLat + dLng*dLng) * R;
-}
+function calcDist(a,b){const R=6371000,dLat=(b[0]-a[0])*Math.PI/180,dLng=(b[1]-a[1])*Math.PI/180;return Math.sqrt(dLat*dLat+dLng*dLng)*R;}
 
-// ========================
-// ミニ統計
-// ========================
-function updateMiniStats() {
-  document.getElementById('ms-dst').textContent = (totDist/1000).toFixed(2);
-  document.getElementById('ms-up').textContent  = Math.round(elevUp);
-  document.getElementById('ms-alt').textContent = curAlt !== null ? Math.round(curAlt) : '--';
+function updateMini(){
+  document.getElementById('ms-dst').textContent=(totDist/1000).toFixed(2);
+  document.getElementById('ms-up').textContent=Math.round(elevUp);
+  document.getElementById('ms-alt').textContent=curAlt!==null?Math.round(curAlt):'--';
 }
-
-function updateElapsed() {
-  if (!startTime) return;
-  const s = Math.floor((Date.now()-startTime)/1000);
-  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
-  document.getElementById('ms-ela').textContent =
-    h > 0 ? `${h}:${pad(m)}:${pad(ss)}` : `${pad(m)}:${pad(ss)}`;
+function updateElapsed(){
+  if(!startTime) return;
+  const s=Math.floor((Date.now()-startTime)/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;
+  document.getElementById('ms-ela').textContent=h>0?`${h}:${p(m)}:${p(ss)}`:`${p(m)}:${p(ss)}`;
 }
-const pad    = n => String(n).padStart(2,'0');
-const fmtT   = d => new Date(d).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
-const fmtD   = d => new Date(d).toLocaleDateString('ja-JP');
-const fmtDur = ms => {
-  const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
-  return h > 0 ? `${h}時間${m}分` : `${m}分`;
-};
+const p=n=>String(n).padStart(2,'0');
+const fmtT=d=>new Date(d).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+const fmtD=d=>new Date(d).toLocaleDateString('ja-JP');
+const fmtDur=ms=>{const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);return h>0?`${h}時間${m}分`:`${m}分`;};
 
-// ========================
 // ボトムシート
-// ========================
-let sheetOpen = false;
-function toggleSheet() {
-  sheetOpen = !sheetOpen;
-  document.getElementById('sheet').classList.toggle('open', sheetOpen);
-  document.getElementById('btn-myloc').classList.toggle('behind', sheetOpen);
+let sheetOpen=false;
+function toggleSheet(){
+  sheetOpen=!sheetOpen;
+  document.getElementById('sheet').classList.toggle('open',sheetOpen);
+  document.getElementById('btn-myloc').classList.toggle('behind',sheetOpen);
 }
-function closeSheet() {
-  sheetOpen = false;
+function closeSheet(){
+  sheetOpen=false;
   document.getElementById('sheet').classList.remove('open');
   document.getElementById('btn-myloc').classList.remove('behind');
 }
 
-// ========================
 // ポイントシート
-// ========================
-function openPtSheet() {
-  if (!gpsReady || !curLatLng) { alert('GPS取得中です。'); return; }
-  if (!isTracking) { alert('軌跡記録を開始してからポイントを記録してください。'); return; }
+function openPtSheet(){
+  if(!gpsReady||!curLatLng){alert('GPS取得中です。');return;}
+  if(!isTracking){alert('軌跡記録を開始してからポイントを記録してください。');return;}
   closeSheet();
   document.getElementById('pt-sheet').classList.add('open');
 }
-function closePtSheet() { document.getElementById('pt-sheet').classList.remove('open'); }
+function closePtSheet(){document.getElementById('pt-sheet').classList.remove('open');}
 
-// ========================
-// ピン操作
-// ========================
-const typeLabel = t => ({catch:'釣果',entry:'入渓',exit:'退渓'}[t] || t);
-
-function startPin(type) {
-  closePtSheet();
-  pinType = type;
-  const labels = {catch:'🎣 釣果を記録', entry:'▶ 入渓ポイントを記録', exit:'◀ 退渓ポイントを記録'};
-  document.getElementById('memo-title').textContent = labels[type];
-  document.getElementById('memo-name').value = '';
-  document.getElementById('memo-text').value = '';
+// ピン
+const typeLabel=t=>({catch:'釣果',entry:'入渓',exit:'退渓'}[t]||t);
+function startPin(type){
+  closePtSheet(); pinType=type;
+  const L2={catch:'🎣 釣果を記録',entry:'▶ 入渓ポイントを記録',exit:'◀ 退渓ポイントを記録'};
+  document.getElementById('memo-title').textContent=L2[type];
+  document.getElementById('memo-name').value='';
+  document.getElementById('memo-text').value='';
   document.getElementById('memo-wrap').classList.add('open');
-  setTimeout(() => document.getElementById('memo-name').focus(), 150);
+  setTimeout(()=>document.getElementById('memo-name').focus(),150);
 }
-function cancelPin() { document.getElementById('memo-wrap').classList.remove('open'); pinType = null; }
-
-function savePin() {
-  if (!curLatLng || !pinType || !activeSession) return;
-  const now = Date.now();
-  const pin = {
-    id: now, type: pinType,
-    lat: curLatLng[0], lng: curLatLng[1],
-    name: document.getElementById('memo-name').value.trim() || typeLabel(pinType),
-    memo: document.getElementById('memo-text').value.trim(),
-    date: fmtD(now), time: fmtT(now)
-  };
+function cancelPin(){document.getElementById('memo-wrap').classList.remove('open');pinType=null;}
+function savePin(){
+  if(!curLatLng||!pinType||!activeSession) return;
+  const now=Date.now();
+  const pin={id:now,type:pinType,lat:curLatLng[0],lng:curLatLng[1],
+    name:document.getElementById('memo-name').value.trim()||typeLabel(pinType),
+    memo:document.getElementById('memo-text').value.trim(),
+    date:fmtD(now),time:fmtT(now)};
   activeSession.pins.push(pin);
   saveSessions();
-  addPinMarker(activeSession.id, pin);
+  addPinMarker(activeSession.id,pin);
   document.getElementById('memo-wrap').classList.remove('open');
-  map.setView(curLatLng, Math.max(map.getZoom(), 14));
-  pinType = null;
-  updateLogCount();
+  map.setView(curLatLng,Math.max(map.getZoom(),14));
+  pinType=null; updateLogCount();
+}
+function makeIcon(type){
+  const lbl={catch:'釣',entry:'入',exit:'退'}[type]||'●';
+  return L.divIcon({className:'',html:`<div style="background:#1c1c1c;border:1.5px solid #666;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.5)"><span style="transform:rotate(45deg);font-size:11px;font-weight:700;color:#ccc">${lbl}</span></div>`,iconSize:[30,30],iconAnchor:[15,30],popupAnchor:[0,-32]});
+}
+function addPinMarker(sid,pin){
+  const m=L.marker([pin.lat,pin.lng],{icon:makeIcon(pin.type)}).addTo(map)
+    .bindPopup(`<div class="pu-title">${pin.name}</div><div class="pu-meta">${pin.date} ${pin.time}</div>${pin.memo?`<div class="pu-memo">${pin.memo}</div>`:''}`);
+  if(!markers[sid]) markers[sid]=[];
+  markers[sid].push({id:pin.id,marker:m});
 }
 
-function makeIcon(type) {
-  const lbl = {catch:'釣', entry:'入', exit:'退'}[type] || '●';
-  return L.divIcon({
-    className: '',
-    html: `<div style="background:#1c1c1c;border:1.5px solid #666;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.5)"><span style="transform:rotate(45deg);font-size:11px;font-weight:700;color:#ccc">${lbl}</span></div>`,
-    iconSize: [30,30], iconAnchor: [15,30], popupAnchor: [0,-32]
-  });
-}
-
-function addPinMarker(sid, pin) {
-  const m = L.marker([pin.lat, pin.lng], {icon: makeIcon(pin.type)}).addTo(map)
-    .bindPopup(`<div class="pu-title">${pin.name}</div><div class="pu-meta">${pin.date} ${pin.time}</div>${pin.memo ? `<div class="pu-memo">${pin.memo}</div>` : ''}`);
-  if (!markers[sid]) markers[sid] = [];
-  markers[sid].push({id: pin.id, marker: m});
-}
-
-// ========================
-// 軌跡記録
-// ========================
-function toggleTracking() {
-  if (!isTracking) {
-    if (!gpsReady) { alert('GPS取得中です。'); return; }
-    isTracking = true;
-    startTime  = Date.now();
-    totDist = 0; elevUp = 0; elevDn = 0; lastAlt = curAlt;
-    activeSession = {
-      id: startTime, startTime, endTime: null,
-      date: fmtD(startTime), startStr: fmtT(startTime),
-      endStr: null, durStr: null,
-      dist: 0, elevGain: 0, elevLoss: 0,
-      comment: '', pins: [], points: []
-    };
-    trackPts  = curLatLng ? [[...curLatLng, curAlt||0]] : [];
-    trackLine = L.polyline(trackPts.map(p=>[p[0],p[1]]), {
-      color: '#9b3fa0', weight: 3, opacity: .9, dashArray: '8,5'
-    }).addTo(map);
+// 軌跡
+function toggleTracking(){
+  if(!isTracking){
+    if(!gpsReady){alert('GPS取得中です。');return;}
+    isTracking=true; startTime=Date.now();
+    totDist=0;elevUp=0;elevDn=0;lastAlt=curAlt;
+    activeSession={id:startTime,startTime,endTime:null,date:fmtD(startTime),startStr:fmtT(startTime),endStr:null,durStr:null,dist:0,elevGain:0,elevLoss:0,comment:'',pins:[],points:[]};
+    trackPts=curLatLng?[[...curLatLng,curAlt||0]]:[];
+    trackLine=L.polyline(trackPts.map(p=>[p[0],p[1]]),{color:'#9b3fa0',weight:3,opacity:.9,dashArray:'8,5'}).addTo(map);
     document.getElementById('btn-track').classList.add('rec');
-    document.getElementById('trk-icon').textContent = '⏹';
-    document.getElementById('trk-lbl').textContent  = '記録停止';
-    eTimer = setInterval(updateElapsed, 1000);
+    document.getElementById('trk-icon').textContent='⏹';
+    document.getElementById('trk-lbl').textContent='記録停止';
+    eTimer=setInterval(updateElapsed,1000);
   } else {
-    isTracking = false;
-    clearInterval(eTimer);
-    const endTime = Date.now();
+    isTracking=false; clearInterval(eTimer);
+    const endTime=Date.now();
     document.getElementById('btn-track').classList.remove('rec');
-    document.getElementById('trk-icon').textContent = '⏺';
-    document.getElementById('trk-lbl').textContent  = '軌跡記録';
-    document.getElementById('gps-dot').className    = 'active';
-    document.getElementById('ms-ela').textContent   = '--:--';
-
-    if (activeSession && trackPts.length > 1) {
-      activeSession.endTime  = endTime;
-      activeSession.endStr   = fmtT(endTime);
-      activeSession.durStr   = fmtDur(endTime - startTime);
-      activeSession.dist     = totDist;
-      activeSession.elevGain = elevUp;
-      activeSession.elevLoss = elevDn;
-      activeSession.points   = [...trackPts];
-      sessions.push(activeSession);
-      saveSessions();
-      trackLayers[activeSession.id] = trackLine;
-    } else {
-      if (trackLine) map.removeLayer(trackLine);
-    }
-    activeSession = null; trackLine = null; trackPts = []; startTime = null;
-    updateLogCount();
+    document.getElementById('trk-icon').textContent='⏺';
+    document.getElementById('trk-lbl').textContent='軌跡記録';
+    document.getElementById('gps-dot').className='active';
+    document.getElementById('ms-ela').textContent='--:--';
+    if(activeSession&&trackPts.length>1){
+      activeSession.endTime=endTime;activeSession.endStr=fmtT(endTime);
+      activeSession.durStr=fmtDur(endTime-startTime);activeSession.dist=totDist;
+      activeSession.elevGain=elevUp;activeSession.elevLoss=elevDn;
+      activeSession.points=[...trackPts];
+      sessions.push(activeSession);saveSessions();
+      trackLayers[activeSession.id]=trackLine;
+    } else { if(trackLine) map.removeLayer(trackLine); }
+    activeSession=null;trackLine=null;trackPts=[];startTime=null;updateLogCount();
   }
   closeSheet();
 }
 
-function clearTracks() {
-  if (!confirm('保存済みの軌跡を全て削除しますか？\n（ピンは残ります）')) return;
-  Object.values(trackLayers).forEach(l => map.removeLayer(l));
-  trackLayers = {};
-  sessions.forEach(s => { s.points = []; });
-  saveSessions();
+function clearTracks(){
+  if(!confirm('保存済みの軌跡を全て削除しますか？\n（ピンは残ります）')) return;
+  Object.values(trackLayers).forEach(l=>map.removeLayer(l));
+  trackLayers={};sessions.forEach(s=>{s.points=[];});saveSessions();
 }
 
-// ========================
-// セッション保存（デバウンス）
-// ========================
-let saveTimer = null;
-function saveSessions() {
+let saveTimer=null;
+function saveSessions(){
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    localStorage.setItem('keisyu_v5', JSON.stringify(sessions));
-  }, 300);
+  saveTimer=setTimeout(()=>{localStorage.setItem('keisyu_v5',JSON.stringify(sessions));},300);
 }
 
-// ========================
-// ログ画面
-// ========================
-function openLog() {
-  closeSheet();
-  renderLog();
-  document.getElementById('log-screen').classList.add('open');
-}
-function closeLog() { document.getElementById('log-screen').classList.remove('open'); }
-
-function renderLog() {
-  const body = document.getElementById('log-body');
-  if (!sessions.length) {
-    body.innerHTML = '<div style="color:var(--text3);text-align:center;padding:40px 0;font-size:13px">釣行記録なし</div>';
-    return;
-  }
-  body.innerHTML = [...sessions].reverse().map(s => `
+// ログ
+function openLog(){closeSheet();renderLog();document.getElementById('log-screen').classList.add('open');}
+function closeLog(){document.getElementById('log-screen').classList.remove('open');}
+function renderLog(){
+  const body=document.getElementById('log-body');
+  if(!sessions.length){body.innerHTML='<div style="color:#555;text-align:center;padding:40px 0;font-size:13px">釣行記録なし</div>';return;}
+  body.innerHTML=[...sessions].reverse().map(s=>`
     <div class="sc" id="sc-${s.id}">
       <div class="sc-hdr" onclick="toggleSC(${s.id})">
         <div>
-          <div class="sc-title">${s.date}　${s.startStr}${s.endStr ? ' – '+s.endStr : ''}</div>
+          <div class="sc-title">${s.date}　${s.startStr}${s.endStr?' – '+s.endStr:''}</div>
           <div class="sc-sub">${s.durStr||''}　${(s.dist/1000).toFixed(2)}km</div>
         </div>
         <span class="sc-chev">▼</span>
@@ -741,106 +545,76 @@ function renderLog() {
       </div>
       <div class="sc-memo">
         <div class="sc-memo-l">MEMO</div>
-        <div class="sc-memo-t ${s.comment ? '' : 'empty'}" onclick="openCmt(${s.id})">${s.comment || 'タップしてメモを追加…'}</div>
+        <div class="sc-memo-t ${s.comment?'':'empty'}" onclick="openCmt(${s.id})">${s.comment||'タップしてメモを追加…'}</div>
       </div>
       <div class="sc-pts" id="sp-${s.id}">
         ${!s.pins.length
-          ? '<div style="color:var(--text3);font-size:12px;padding:8px 0">ポイントなし</div>'
-          : s.pins.map(p => `
+          ?'<div style="color:#555;font-size:12px;padding:8px 0">ポイントなし</div>'
+          :s.pins.map(p=>`
             <div class="pi">
               <span class="pi-badge">${typeLabel(p.type)}</span>
               <div class="pi-info">
                 <div class="pi-name">${p.name}</div>
                 <div class="pi-meta">${p.date} ${p.time}</div>
-                ${p.memo ? `<div class="pi-memo">${p.memo}</div>` : ''}
+                ${p.memo?`<div class="pi-memo">${p.memo}</div>`:''}
                 <button class="pi-jump" onclick="jumpTo(${p.lat},${p.lng})">地図で見る</button>
               </div>
               <button class="pi-del" onclick="delPin(${s.id},${p.id})">✕</button>
-            </div>`).join('')
-        }
+            </div>`).join('')}
       </div>
       <button class="sc-del" onclick="delSession(${s.id})">この釣行を削除</button>
-    </div>
-  `).join('');
+    </div>`).join('');
+}
+function toggleSC(id){document.getElementById(`sc-${id}`).classList.toggle('open');}
+function jumpTo(lat,lng){closeLog();map.setView([lat,lng],15);}
+function delPin(sid,pid){
+  if(!confirm('このポイントを削除しますか？')) return;
+  const s=sessions.find(s=>s.id===sid);if(!s) return;
+  s.pins=s.pins.filter(p=>p.id!==pid);saveSessions();
+  if(markers[sid]){const i=markers[sid].findIndex(m=>m.id===pid);if(i!==-1){map.removeLayer(markers[sid][i].marker);markers[sid].splice(i,1);}}
+  renderLog();updateLogCount();
+}
+function delSession(id){
+  if(!confirm('この釣行を削除しますか？\n軌跡・ポイントすべて削除されます。')) return;
+  sessions=sessions.filter(s=>s.id!==id);saveSessions();
+  if(trackLayers[id]){map.removeLayer(trackLayers[id]);delete trackLayers[id];}
+  if(markers[id]){markers[id].forEach(m=>map.removeLayer(m.marker));delete markers[id];}
+  renderLog();updateLogCount();
 }
 
-function toggleSC(id) { document.getElementById(`sc-${id}`).classList.toggle('open'); }
-function jumpTo(lat, lng) { closeLog(); map.setView([lat,lng], 15); }
-
-function delPin(sid, pid) {
-  if (!confirm('このポイントを削除しますか？')) return;
-  const s = sessions.find(s => s.id === sid);
-  if (!s) return;
-  s.pins = s.pins.filter(p => p.id !== pid);
-  saveSessions();
-  if (markers[sid]) {
-    const i = markers[sid].findIndex(m => m.id === pid);
-    if (i !== -1) { map.removeLayer(markers[sid][i].marker); markers[sid].splice(i,1); }
-  }
-  renderLog();
-  updateLogCount();
-}
-
-function delSession(id) {
-  if (!confirm('この釣行を削除しますか？\n軌跡・ポイントすべて削除されます。')) return;
-  sessions = sessions.filter(s => s.id !== id);
-  saveSessions();
-  if (trackLayers[id]) { map.removeLayer(trackLayers[id]); delete trackLayers[id]; }
-  if (markers[id]) { markers[id].forEach(m => map.removeLayer(m.marker)); delete markers[id]; }
-  renderLog();
-  updateLogCount();
-}
-
-// ========================
 // コメント
-// ========================
-function openCmt(id) {
-  editCmtId = id;
-  const s = sessions.find(s => s.id === id);
-  document.getElementById('cmt-inp').value = s?.comment || '';
+function openCmt(id){
+  editCmtId=id;
+  const s=sessions.find(s=>s.id===id);
+  document.getElementById('cmt-inp').value=s?.comment||'';
   document.getElementById('cmt-wrap').classList.add('open');
-  setTimeout(() => document.getElementById('cmt-inp').focus(), 150);
+  setTimeout(()=>document.getElementById('cmt-inp').focus(),150);
 }
-function closeCmt() { document.getElementById('cmt-wrap').classList.remove('open'); editCmtId = null; }
-function saveCmt() {
-  const s = sessions.find(s => s.id === editCmtId);
-  if (s) {
-    s.comment = document.getElementById('cmt-inp').value.trim();
-    saveSessions();
-    renderLog();
-    const card = document.getElementById(`sc-${editCmtId}`);
-    if (card) card.classList.add('open');
-  }
+function closeCmt(){document.getElementById('cmt-wrap').classList.remove('open');editCmtId=null;}
+function saveCmt(){
+  const s=sessions.find(s=>s.id===editCmtId);
+  if(s){s.comment=document.getElementById('cmt-inp').value.trim();saveSessions();renderLog();
+    const card=document.getElementById(`sc-${editCmtId}`);if(card) card.classList.add('open');}
   closeCmt();
 }
 
-// ========================
-// ログカウント
-// ========================
-function updateLogCount() {
-  const el = document.getElementById('log-count');
-  el.textContent = sessions.length;
-  el.style.display = sessions.length ? 'flex' : 'none';
+function updateLogCount(){
+  const el=document.getElementById('log-count');
+  el.textContent=sessions.length;
+  el.style.display=sessions.length?'flex':'none';
 }
 
-// ========================
 // 初期ロード
-// ========================
-sessions.forEach(s => {
-  if (s.points?.length > 1) {
-    const l = L.polyline(s.points.map(p=>[p[0],p[1]]), {
-      color: '#9b3fa0', weight: 3, opacity: .6, dashArray: '8,5'
-    }).addTo(map);
-    trackLayers[s.id] = l;
+sessions.forEach(s=>{
+  if(s.points?.length>1){
+    const l=L.polyline(s.points.map(p=>[p[0],p[1]]),{color:'#9b3fa0',weight:3,opacity:.6,dashArray:'8,5'}).addTo(map);
+    trackLayers[s.id]=l;
   }
-  s.pins?.forEach(p => addPinMarker(s.id, p));
+  s.pins?.forEach(p=>addPinMarker(s.id,p));
 });
 updateLogCount();
-
 navigator.geolocation?.getCurrentPosition(
-  pos => map.setView([pos.coords.latitude, pos.coords.longitude], 13),
-  () => {}
-);
+  pos=>map.setView([pos.coords.latitude,pos.coords.longitude],13),()=>{});
 </script>
 </body>
 </html>
