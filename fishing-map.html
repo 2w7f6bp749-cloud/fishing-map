@@ -38,20 +38,13 @@ body{
 #gps-label{font-size:14px;color:var(--text2);font-weight:500;min-width:58px;text-align:right}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-/* 地図ラッパー（大きめにしてCSS回転の端切れを防ぐ） */
-#map-wrap{
+/* 地図（通常サイズ） */
+#map{
   position:absolute;
-  /* 対角線分だけ拡張 */
-  top:calc(49px - 15vw);
-  left:-15vw;
-  right:-15vw;
-  bottom:calc(var(--peek) - 15vw);
+  top:49px; left:0; right:0;
+  bottom:var(--peek);
   z-index:1;
-  will-change:transform;
-  transition:transform 0.15s linear;
-  transform-origin:center center;
 }
-#map{width:100%;height:100%}
 
 /* 現在地ボタン */
 #btn-myloc{
@@ -62,32 +55,22 @@ body{
   border-radius:10px;width:44px;height:44px;font-size:18px;
   cursor:pointer;display:flex;align-items:center;justify-content:center;
   box-shadow:0 2px 8px rgba(0,0,0,.5);
-  transition:opacity 0.2s, bottom 0.3s ease;
+  transition:opacity .2s ease, z-index 0s;
   will-change:opacity;
 }
-#btn-myloc.behind{opacity:0;pointer-events:none}
-
-/* コンパス */
-#compass{
-  position:absolute;right:14px;top:60px;z-index:900;
-  width:44px;height:44px;
-  display:none;align-items:center;justify-content:center;
-  background:var(--surface);border:1px solid var(--border2);
-  border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.5);
-}
-#compass.show{display:flex}
-#compass-svg{transition:transform .15s linear;will-change:transform}
+#btn-myloc.behind{opacity:0;pointer-events:none;z-index:0}
 
 /* ボトムシート */
 #sheet{
-  position:absolute;left:0;right:0;bottom:0;z-index:800;
+  position:absolute;left:0;right:0;bottom:0;
+  z-index:800;
   background:var(--surface);border-top:1px solid var(--border);
   border-radius:16px 16px 0 0;
   will-change:transform;
 }
 #sheet-handle-area{
   padding:10px 0 0;display:flex;flex-direction:column;align-items:center;
-  cursor:pointer;user-select:none;touch-action:none;
+  cursor:pointer;user-select:none;
 }
 #sheet-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin-bottom:10px}
 
@@ -115,7 +98,7 @@ body{
   font-size:13px;font-weight:700;font-family:inherit;
   padding:13px 8px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;gap:6px;
-  transition:transform .12s ease,background .15s ease,border-color .15s ease,color .15s ease;
+  transition:transform .12s ease,background .15s,border-color .15s,color .15s;
   will-change:transform;
 }
 .sb:active{transform:scale(.97)}
@@ -265,7 +248,7 @@ body{
 <div id="header">
   <div id="header-left">
     <h1>渓流マップ</h1>
-    <span id="version">v0.5</span>
+    <span id="version">v0.6</span>
   </div>
   <div id="gps-status">
     <div id="gps-dot"></div>
@@ -273,18 +256,8 @@ body{
   </div>
 </div>
 
-<!-- 地図ラッパー（大きめ確保で端切れ防止） -->
-<div id="map-wrap"><div id="map"></div></div>
+<div id="map"></div>
 
-<!-- コンパス -->
-<div id="compass">
-  <svg id="compass-svg" width="28" height="28" viewBox="0 0 28 28">
-    <polygon points="14,2 17,14 14,12 11,14" fill="#e74c3c"/>
-    <polygon points="14,26 17,14 14,16 11,14" fill="#888"/>
-  </svg>
-</div>
-
-<!-- 現在地ボタン -->
 <button id="btn-myloc" onclick="cycleLocMode()">
   <span id="loc-icon">◎</span>
 </button>
@@ -361,32 +334,47 @@ body{
 // ========================
 // 地図初期化
 // ========================
-const map = L.map('map', {center:[42.6,141.4], zoom:10, zoomControl:true});
+const BOUNDS = L.latLngBounds(
+  L.latLng(42.40, 140.40),
+  L.latLng(43.30, 141.70)
+);
+
+const map = L.map('map', {
+  center: [42.7, 141.0],
+  zoom: 11,
+  minZoom: 10,
+  maxZoom: 17,
+  maxBounds: BOUNDS,
+  maxBoundsViscosity: 0.9,
+  zoomControl: true
+});
+
 L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-  attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>',
-  maxZoom:18, keepBuffer:4
+  attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>',
+  maxZoom: 17,
+  keepBuffer: 3
 }).addTo(map);
 
 // 手動操作で解除モードへ
-map.on('dragstart', () => { if(locMode > 0) setLocMode(0); });
-map.on('zoomstart', (e) => { if(e.originalEvent && locMode > 0) setLocMode(0); });
+map.on('dragstart', () => { if (locMode > 0) setLocMode(0); });
+map.on('zoomstart', e => { if (e.originalEvent && locMode > 0) setLocMode(0); });
 
 // ========================
 // データ
 // ========================
-let sessions     = JSON.parse(localStorage.getItem('keisyu_v5') || '[]');
-let activeSession= null;
-let isTracking   = false;
-let trackPts     = [];
-let trackLine    = null;
-let curLatLng    = null;
-let curAlt       = null;
-let curHeading   = null;
-let gpsReady     = false;
-let markers      = {};
-let trackLayers  = {};
-let pinType      = null;
-let editCmtId    = null;
+let sessions      = JSON.parse(localStorage.getItem('keisyu_v5') || '[]');
+let activeSession = null;
+let isTracking    = false;
+let trackPts      = [];
+let trackLine     = null;
+let curLatLng     = null;
+let curAlt        = null;
+let curHeading    = null;
+let gpsReady      = false;
+let markers       = {};
+let trackLayers   = {};
+let pinType       = null;
+let editCmtId     = null;
 
 // 統計
 let startTime = null;
@@ -397,93 +385,99 @@ let lastAlt   = null;
 let eTimer    = null;
 
 // ========================
-// ロケーションモード
+// ロケーションモード（2段階）
+// 0=解除 1=追従
 // ========================
-let locMode = 0; // 0=解除 1=追従 2=ヘッドアップ
-const locIcons = ['◎','▲','🧭'];
+let locMode = 0;
 
 function setLocMode(m) {
   locMode = m;
-  document.getElementById('loc-icon').textContent = locIcons[m];
-  const compass = document.getElementById('compass');
-  if (m === 2) {
-    compass.classList.add('show');
-  } else {
-    compass.classList.remove('show');
-    // 地図ラッパーの回転をリセット
-    document.getElementById('map-wrap').style.transform = 'rotate(0deg)';
-    map.invalidateSize();
-  }
-  if (m > 0 && curLatLng) map.panTo(curLatLng, {animate:true, duration:0.3});
+  document.getElementById('loc-icon').textContent = m === 0 ? '◎' : '▲';
+  if (m > 0 && curLatLng) map.panTo(curLatLng, {animate: true, duration: 0.3});
 }
-
-function cycleLocMode() { setLocMode((locMode + 1) % 3); }
-
-// ========================
-// 地図ラッパー回転（端切れ防止）
-// ========================
-let lastMapRot = 0;
-let rafId = null;
-
-function applyMapRotation(deg) {
-  if (Math.abs(deg - lastMapRot) < 0.5) return; // 変化小さければスキップ
-  lastMapRot = deg;
-  if (rafId) cancelAnimationFrame(rafId);
-  rafId = requestAnimationFrame(() => {
-    document.getElementById('map-wrap').style.transform = `rotate(${-deg}deg)`;
-    // コントロール類は逆回転で正立を保つ
-    document.querySelectorAll('.leaflet-control').forEach(el => {
-      el.style.transform = `rotate(${deg}deg)`;
-    });
-    // コンパス針
-    document.getElementById('compass-svg').style.transform = `rotate(${-deg}deg)`;
-    rafId = null;
-  });
-}
+function cycleLocMode() { setLocMode(locMode === 0 ? 1 : 0); }
 
 // ========================
-// 現在地アイコン（YAMAP風）
+// 現在地マーカー（CircleMarker + 扇SVG）
 // ========================
-let locMarker = null;
-let locSvgEl  = null; // SVG要素を使い回す
-
-function buildLocSVG(heading, mode) {
-  const hasDir = heading !== null && !isNaN(heading) && mode > 0;
-  // 扇パラメータ（大きめ）
-  const R = 52, cx = 60, cy = 60, spread = 50;
-  const angle = mode === 2 ? -90 : (heading - 90); // SVG座標系に合わせる
-  const a1 = (angle - spread/2) * Math.PI/180;
-  const a2 = (angle + spread/2) * Math.PI/180;
-  const x1 = cx + R * Math.cos(a1);
-  const y1 = cy + R * Math.sin(a1);
-  const x2 = cx + R * Math.cos(a2);
-  const y2 = cy + R * Math.sin(a2);
-
-  const fan = hasDir
-    ? `<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R} 0 0,1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="rgba(46,134,222,0.35)"/>`
-    : '';
-
-  return `<svg width="120" height="120" viewBox="0 0 120 120" style="position:absolute;top:0;left:0">
-    <!-- 精度円 -->
-    <circle cx="60" cy="60" r="28" fill="rgba(46,134,222,0.15)"/>
-    <!-- 扇 -->
-    ${fan}
-    <!-- 白縁 -->
-    <circle cx="60" cy="60" r="11" fill="white"/>
-    <!-- 青丸 -->
-    <circle cx="60" cy="60" r="9" fill="#2e86de"/>
-  </svg>`;
-}
+let locMarker  = null;  // CircleMarker（青丸）
+let fanMarker  = null;  // DivIcon（扇）
+let accCircle  = null;  // Circle（精度円）
 
 function updateLocMarker() {
   if (!curLatLng) return;
-  const html = `<div style="position:relative;width:120px;height:120px">${buildLocSVG(curHeading, locMode)}</div>`;
-  const icon = L.divIcon({className:'', html, iconSize:[120,120], iconAnchor:[60,60]});
+
+  // 精度円（初回のみ作成）
+  if (!accCircle) {
+    accCircle = L.circle(curLatLng, {
+      radius: 20,
+      color: 'rgba(46,134,222,0.4)',
+      fillColor: 'rgba(46,134,222,0.1)',
+      fillOpacity: 1,
+      weight: 1,
+      interactive: false
+    }).addTo(map);
+  } else {
+    accCircle.setLatLng(curLatLng);
+  }
+
+  // 青丸（CircleMarker）
   if (!locMarker) {
-    locMarker = L.marker(curLatLng, {icon, zIndexOffset:1000, interactive:false}).addTo(map);
+    locMarker = L.circleMarker(curLatLng, {
+      radius: 9,
+      color: '#fff',
+      fillColor: '#2e86de',
+      fillOpacity: 1,
+      weight: 2.5,
+      interactive: false,
+      zIndexOffset: 1000
+    }).addTo(map);
   } else {
     locMarker.setLatLng(curLatLng);
-    locMarker.setIcon(icon);
+  }
+
+  // 扇（進行方向）
+  updateFanMarker();
+}
+
+function updateFanMarker() {
+  if (!curLatLng) return;
+  const hasDir = curHeading !== null && !isNaN(curHeading);
+
+  if (!hasDir) {
+    if (fanMarker) { map.removeLayer(fanMarker); fanMarker = null; }
+    return;
+  }
+
+  const a = curHeading; // 北=0, 時計回り
+  const spread = 50;
+  const R = 48, cx = 60, cy = 60;
+  const toRad = d => (d - 90) * Math.PI / 180;
+  const a1 = toRad(a - spread/2);
+  const a2 = toRad(a + spread/2);
+  const x1 = (cx + R * Math.cos(a1)).toFixed(1);
+  const y1 = (cy + R * Math.sin(a1)).toFixed(1);
+  const x2 = (cx + R * Math.cos(a2)).toFixed(1);
+  const y2 = (cy + R * Math.sin(a2)).toFixed(1);
+
+  const svg = `<svg width="120" height="120" viewBox="0 0 120 120" style="position:absolute;top:0;left:0;pointer-events:none">
+    <path d="M${cx},${cy} L${x1},${y1} A${R},${R} 0 0,1 ${x2},${y2} Z"
+      fill="rgba(46,134,222,0.4)" />
+  </svg>`;
+
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="position:relative;width:120px;height:120px">${svg}</div>`,
+    iconSize: [120, 120],
+    iconAnchor: [60, 60],
+    interactive: false
+  });
+
+  if (!fanMarker) {
+    fanMarker = L.marker(curLatLng, {icon, zIndexOffset: 999, interactive: false}).addTo(map);
+  } else {
+    fanMarker.setLatLng(curLatLng);
+    fanMarker.setIcon(icon);
   }
 }
 
@@ -491,36 +485,29 @@ function updateLocMarker() {
 // GPS（throttle付き）
 // ========================
 let lastGpsUpdate = 0;
-const GPS_THROTTLE = 800; // ms
+const GPS_THROTTLE = 800;
 
 if (navigator.geolocation) {
   navigator.geolocation.watchPosition(pos => {
     const now = Date.now();
-    gpsReady  = true;
+    gpsReady   = true;
     curLatLng  = [pos.coords.latitude, pos.coords.longitude];
     curAlt     = pos.coords.altitude;
     curHeading = pos.coords.heading;
 
-    // GPS表示は常に更新
-    const dot = document.getElementById('gps-dot');
-    dot.className = isTracking ? 'rec' : 'active';
+    document.getElementById('gps-dot').className = isTracking ? 'rec' : 'active';
     document.getElementById('gps-label').textContent = `±${Math.round(pos.coords.accuracy)}m`;
 
-    // アイコン・地図更新はthrottle
     if (now - lastGpsUpdate < GPS_THROTTLE) return;
     lastGpsUpdate = now;
 
     updateLocMarker();
-
-    if (locMode === 2 && curHeading !== null && !isNaN(curHeading)) {
-      applyMapRotation(curHeading);
-    }
-    if (locMode > 0) map.panTo(curLatLng, {animate:true, duration:0.25, noMoveStart:true});
+    if (locMode > 0) map.panTo(curLatLng, {animate: true, duration: 0.25, noMoveStart: true});
 
     // 軌跡記録
     if (isTracking) {
       const last = trackPts[trackPts.length - 1];
-      const newPt = [pos.coords.latitude, pos.coords.longitude, curAlt||0];
+      const newPt = [pos.coords.latitude, pos.coords.longitude, curAlt || 0];
       if (!last || calcDist(last, newPt) > 5) {
         trackPts.push(newPt);
         if (trackLine) trackLine.addLatLng([newPt[0], newPt[1]]);
@@ -536,11 +523,13 @@ if (navigator.geolocation) {
     }
   },
   () => { document.getElementById('gps-label').textContent = 'ERR'; },
-  {enableHighAccuracy:true, maximumAge:10000, timeout:20000});
+  {enableHighAccuracy: true, maximumAge: 10000, timeout: 20000});
 }
 
 function calcDist(a, b) {
-  const R=6371000, dLat=(b[0]-a[0])*Math.PI/180, dLng=(b[1]-a[1])*Math.PI/180;
+  const R = 6371000;
+  const dLat = (b[0]-a[0]) * Math.PI/180;
+  const dLng = (b[1]-a[1]) * Math.PI/180;
   return Math.sqrt(dLat*dLat + dLng*dLng) * R;
 }
 
@@ -556,16 +545,16 @@ function updateMiniStats() {
 function updateElapsed() {
   if (!startTime) return;
   const s = Math.floor((Date.now()-startTime)/1000);
-  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), ss=s%60;
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
   document.getElementById('ms-ela').textContent =
-    h>0 ? `${h}:${pad(m)}:${pad(ss)}` : `${pad(m)}:${pad(ss)}`;
+    h > 0 ? `${h}:${pad(m)}:${pad(ss)}` : `${pad(m)}:${pad(ss)}`;
 }
-const pad = n => String(n).padStart(2,'0');
-const fmtT = d => new Date(d).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
-const fmtD = d => new Date(d).toLocaleDateString('ja-JP');
+const pad    = n => String(n).padStart(2,'0');
+const fmtT   = d => new Date(d).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+const fmtD   = d => new Date(d).toLocaleDateString('ja-JP');
 const fmtDur = ms => {
   const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
-  return h>0 ? `${h}時間${m}分` : `${m}分`;
+  return h > 0 ? `${h}時間${m}分` : `${m}分`;
 };
 
 // ========================
@@ -587,7 +576,7 @@ function closeSheet() {
 // ポイントシート
 // ========================
 function openPtSheet() {
-  if (!gpsReady||!curLatLng) { alert('GPS取得中です。'); return; }
+  if (!gpsReady || !curLatLng) { alert('GPS取得中です。'); return; }
   if (!isTracking) { alert('軌跡記録を開始してからポイントを記録してください。'); return; }
   closeSheet();
   document.getElementById('pt-sheet').classList.add('open');
@@ -597,53 +586,53 @@ function closePtSheet() { document.getElementById('pt-sheet').classList.remove('
 // ========================
 // ピン操作
 // ========================
-const typeLabel = t => ({catch:'釣果',entry:'入渓',exit:'退渓'}[t]||t);
+const typeLabel = t => ({catch:'釣果',entry:'入渓',exit:'退渓'}[t] || t);
 
 function startPin(type) {
   closePtSheet();
   pinType = type;
-  const labels = {catch:'🎣 釣果を記録',entry:'▶ 入渓ポイントを記録',exit:'◀ 退渓ポイントを記録'};
+  const labels = {catch:'🎣 釣果を記録', entry:'▶ 入渓ポイントを記録', exit:'◀ 退渓ポイントを記録'};
   document.getElementById('memo-title').textContent = labels[type];
   document.getElementById('memo-name').value = '';
   document.getElementById('memo-text').value = '';
   document.getElementById('memo-wrap').classList.add('open');
-  setTimeout(()=>document.getElementById('memo-name').focus(), 150);
+  setTimeout(() => document.getElementById('memo-name').focus(), 150);
 }
-function cancelPin() { document.getElementById('memo-wrap').classList.remove('open'); pinType=null; }
+function cancelPin() { document.getElementById('memo-wrap').classList.remove('open'); pinType = null; }
 
 function savePin() {
-  if (!curLatLng||!pinType||!activeSession) return;
+  if (!curLatLng || !pinType || !activeSession) return;
   const now = Date.now();
   const pin = {
-    id:now, type:pinType,
-    lat:curLatLng[0], lng:curLatLng[1],
-    name:document.getElementById('memo-name').value.trim()||typeLabel(pinType),
-    memo:document.getElementById('memo-text').value.trim(),
-    date:fmtD(now), time:fmtT(now)
+    id: now, type: pinType,
+    lat: curLatLng[0], lng: curLatLng[1],
+    name: document.getElementById('memo-name').value.trim() || typeLabel(pinType),
+    memo: document.getElementById('memo-text').value.trim(),
+    date: fmtD(now), time: fmtT(now)
   };
   activeSession.pins.push(pin);
   saveSessions();
   addPinMarker(activeSession.id, pin);
   document.getElementById('memo-wrap').classList.remove('open');
-  map.setView(curLatLng, Math.max(map.getZoom(),14));
+  map.setView(curLatLng, Math.max(map.getZoom(), 14));
   pinType = null;
   updateLogCount();
 }
 
 function makeIcon(type) {
-  const lbl = {catch:'釣',entry:'入',exit:'退'}[type]||'●';
+  const lbl = {catch:'釣', entry:'入', exit:'退'}[type] || '●';
   return L.divIcon({
-    className:'',
-    html:`<div style="background:#1c1c1c;border:1.5px solid #666;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.5)"><span style="transform:rotate(45deg);font-size:11px;font-weight:700;color:#ccc">${lbl}</span></div>`,
-    iconSize:[30,30],iconAnchor:[15,30],popupAnchor:[0,-32]
+    className: '',
+    html: `<div style="background:#1c1c1c;border:1.5px solid #666;width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.5)"><span style="transform:rotate(45deg);font-size:11px;font-weight:700;color:#ccc">${lbl}</span></div>`,
+    iconSize: [30,30], iconAnchor: [15,30], popupAnchor: [0,-32]
   });
 }
 
 function addPinMarker(sid, pin) {
-  const m = L.marker([pin.lat,pin.lng],{icon:makeIcon(pin.type)}).addTo(map)
-    .bindPopup(`<div class="pu-title">${pin.name}</div><div class="pu-meta">${pin.date} ${pin.time}</div>${pin.memo?`<div class="pu-memo">${pin.memo}</div>`:''}`);
-  if (!markers[sid]) markers[sid]=[];
-  markers[sid].push({id:pin.id, marker:m});
+  const m = L.marker([pin.lat, pin.lng], {icon: makeIcon(pin.type)}).addTo(map)
+    .bindPopup(`<div class="pu-title">${pin.name}</div><div class="pu-meta">${pin.date} ${pin.time}</div>${pin.memo ? `<div class="pu-memo">${pin.memo}</div>` : ''}`);
+  if (!markers[sid]) markers[sid] = [];
+  markers[sid].push({id: pin.id, marker: m});
 }
 
 // ========================
@@ -654,17 +643,17 @@ function toggleTracking() {
     if (!gpsReady) { alert('GPS取得中です。'); return; }
     isTracking = true;
     startTime  = Date.now();
-    totDist=0; elevUp=0; elevDn=0; lastAlt=curAlt;
+    totDist = 0; elevUp = 0; elevDn = 0; lastAlt = curAlt;
     activeSession = {
-      id:startTime, startTime, endTime:null,
-      date:fmtD(startTime), startStr:fmtT(startTime),
-      endStr:null, durStr:null,
-      dist:0, elevGain:0, elevLoss:0,
-      comment:'', pins:[], points:[]
+      id: startTime, startTime, endTime: null,
+      date: fmtD(startTime), startStr: fmtT(startTime),
+      endStr: null, durStr: null,
+      dist: 0, elevGain: 0, elevLoss: 0,
+      comment: '', pins: [], points: []
     };
     trackPts  = curLatLng ? [[...curLatLng, curAlt||0]] : [];
-    trackLine = L.polyline(trackPts.map(p=>[p[0],p[1]]),{
-      color:'#9b3fa0', weight:3, opacity:.9, dashArray:'8,5'
+    trackLine = L.polyline(trackPts.map(p=>[p[0],p[1]]), {
+      color: '#9b3fa0', weight: 3, opacity: .9, dashArray: '8,5'
     }).addTo(map);
     document.getElementById('btn-track').classList.add('rec');
     document.getElementById('trk-icon').textContent = '⏹';
@@ -702,9 +691,9 @@ function toggleTracking() {
 
 function clearTracks() {
   if (!confirm('保存済みの軌跡を全て削除しますか？\n（ピンは残ります）')) return;
-  Object.values(trackLayers).forEach(l=>map.removeLayer(l));
+  Object.values(trackLayers).forEach(l => map.removeLayer(l));
   trackLayers = {};
-  sessions.forEach(s=>{s.points=[]});
+  sessions.forEach(s => { s.points = []; });
   saveSessions();
 }
 
@@ -714,7 +703,7 @@ function clearTracks() {
 let saveTimer = null;
 function saveSessions() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(()=>{
+  saveTimer = setTimeout(() => {
     localStorage.setItem('keisyu_v5', JSON.stringify(sessions));
   }, 300);
 }
@@ -735,11 +724,11 @@ function renderLog() {
     body.innerHTML = '<div style="color:var(--text3);text-align:center;padding:40px 0;font-size:13px">釣行記録なし</div>';
     return;
   }
-  body.innerHTML = [...sessions].reverse().map(s=>`
+  body.innerHTML = [...sessions].reverse().map(s => `
     <div class="sc" id="sc-${s.id}">
       <div class="sc-hdr" onclick="toggleSC(${s.id})">
         <div>
-          <div class="sc-title">${s.date}　${s.startStr}${s.endStr?' – '+s.endStr:''}</div>
+          <div class="sc-title">${s.date}　${s.startStr}${s.endStr ? ' – '+s.endStr : ''}</div>
           <div class="sc-sub">${s.durStr||''}　${(s.dist/1000).toFixed(2)}km</div>
         </div>
         <span class="sc-chev">▼</span>
@@ -752,18 +741,18 @@ function renderLog() {
       </div>
       <div class="sc-memo">
         <div class="sc-memo-l">MEMO</div>
-        <div class="sc-memo-t ${s.comment?'':'empty'}" onclick="openCmt(${s.id})">${s.comment||'タップしてメモを追加…'}</div>
+        <div class="sc-memo-t ${s.comment ? '' : 'empty'}" onclick="openCmt(${s.id})">${s.comment || 'タップしてメモを追加…'}</div>
       </div>
       <div class="sc-pts" id="sp-${s.id}">
         ${!s.pins.length
           ? '<div style="color:var(--text3);font-size:12px;padding:8px 0">ポイントなし</div>'
-          : s.pins.map(p=>`
+          : s.pins.map(p => `
             <div class="pi">
               <span class="pi-badge">${typeLabel(p.type)}</span>
               <div class="pi-info">
                 <div class="pi-name">${p.name}</div>
                 <div class="pi-meta">${p.date} ${p.time}</div>
-                ${p.memo?`<div class="pi-memo">${p.memo}</div>`:''}
+                ${p.memo ? `<div class="pi-memo">${p.memo}</div>` : ''}
                 <button class="pi-jump" onclick="jumpTo(${p.lat},${p.lng})">地図で見る</button>
               </div>
               <button class="pi-del" onclick="delPin(${s.id},${p.id})">✕</button>
@@ -776,17 +765,17 @@ function renderLog() {
 }
 
 function toggleSC(id) { document.getElementById(`sc-${id}`).classList.toggle('open'); }
-function jumpTo(lat,lng) { closeLog(); map.setView([lat,lng],15); }
+function jumpTo(lat, lng) { closeLog(); map.setView([lat,lng], 15); }
 
 function delPin(sid, pid) {
   if (!confirm('このポイントを削除しますか？')) return;
-  const s = sessions.find(s=>s.id===sid);
+  const s = sessions.find(s => s.id === sid);
   if (!s) return;
-  s.pins = s.pins.filter(p=>p.id!==pid);
+  s.pins = s.pins.filter(p => p.id !== pid);
   saveSessions();
   if (markers[sid]) {
-    const i = markers[sid].findIndex(m=>m.id===pid);
-    if (i!==-1) { map.removeLayer(markers[sid][i].marker); markers[sid].splice(i,1); }
+    const i = markers[sid].findIndex(m => m.id === pid);
+    if (i !== -1) { map.removeLayer(markers[sid][i].marker); markers[sid].splice(i,1); }
   }
   renderLog();
   updateLogCount();
@@ -794,10 +783,10 @@ function delPin(sid, pid) {
 
 function delSession(id) {
   if (!confirm('この釣行を削除しますか？\n軌跡・ポイントすべて削除されます。')) return;
-  sessions = sessions.filter(s=>s.id!==id);
+  sessions = sessions.filter(s => s.id !== id);
   saveSessions();
   if (trackLayers[id]) { map.removeLayer(trackLayers[id]); delete trackLayers[id]; }
-  if (markers[id]) { markers[id].forEach(m=>map.removeLayer(m.marker)); delete markers[id]; }
+  if (markers[id]) { markers[id].forEach(m => map.removeLayer(m.marker)); delete markers[id]; }
   renderLog();
   updateLogCount();
 }
@@ -807,14 +796,14 @@ function delSession(id) {
 // ========================
 function openCmt(id) {
   editCmtId = id;
-  const s = sessions.find(s=>s.id===id);
-  document.getElementById('cmt-inp').value = s?.comment||'';
+  const s = sessions.find(s => s.id === id);
+  document.getElementById('cmt-inp').value = s?.comment || '';
   document.getElementById('cmt-wrap').classList.add('open');
-  setTimeout(()=>document.getElementById('cmt-inp').focus(),150);
+  setTimeout(() => document.getElementById('cmt-inp').focus(), 150);
 }
-function closeCmt() { document.getElementById('cmt-wrap').classList.remove('open'); editCmtId=null; }
+function closeCmt() { document.getElementById('cmt-wrap').classList.remove('open'); editCmtId = null; }
 function saveCmt() {
-  const s = sessions.find(s=>s.id===editCmtId);
+  const s = sessions.find(s => s.id === editCmtId);
   if (s) {
     s.comment = document.getElementById('cmt-inp').value.trim();
     saveSessions();
@@ -837,19 +826,21 @@ function updateLogCount() {
 // ========================
 // 初期ロード
 // ========================
-sessions.forEach(s=>{
-  if (s.points?.length>1) {
-    const l = L.polyline(s.points.map(p=>[p[0],p[1]]),{
-      color:'#9b3fa0',weight:3,opacity:.6,dashArray:'8,5'
+sessions.forEach(s => {
+  if (s.points?.length > 1) {
+    const l = L.polyline(s.points.map(p=>[p[0],p[1]]), {
+      color: '#9b3fa0', weight: 3, opacity: .6, dashArray: '8,5'
     }).addTo(map);
-    trackLayers[s.id]=l;
+    trackLayers[s.id] = l;
   }
-  s.pins?.forEach(p=>addPinMarker(s.id,p));
+  s.pins?.forEach(p => addPinMarker(s.id, p));
 });
 updateLogCount();
 
 navigator.geolocation?.getCurrentPosition(
-  pos=>map.setView([pos.coords.latitude,pos.coords.longitude],13), ()=>{});
+  pos => map.setView([pos.coords.latitude, pos.coords.longitude], 13),
+  () => {}
+);
 </script>
 </body>
 </html>
