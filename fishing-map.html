@@ -202,8 +202,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;color:#e0e0e0;f
 
 <script>
 // 地図
-const BOUNDS = L.latLngBounds(L.latLng(42.40,140.40),L.latLng(43.30,141.70));
-const map = L.map('map',{center:[42.7,141.0],zoom:11,minZoom:10,maxZoom:17,maxBounds:BOUNDS,maxBoundsViscosity:0.9,zoomControl:true});
+
+const map = L.map('map',{center:[42.7,141.0],zoom:11,minZoom:10,maxZoom:17,zoomControl:true});
 L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',{attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">国土地理院</a>',maxZoom:17,keepBuffer:3}).addTo(map);
 
 map.on('dragstart',()=>{if(locMode>0)setLocMode(0);});
