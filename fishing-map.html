@@ -28,16 +28,34 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;color:#e0e0e0;f
 
 #map{position:fixed;top:49px;left:0;right:0;bottom:90px;z-index:1}
 
-/* レイヤーボタン（SVGアイコン） */
-#btn-layer{
-  position:fixed;right:14px;top:58px;z-index:900;
-  background:#1c1c1c;border:1px solid #444;border-radius:10px;
-  width:44px;height:44px;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 2px 8px rgba(0,0,0,.5);padding:0;
+/* クロスヘア */
+#crosshair{
+  position:fixed;left:50%;top:50%;
+  transform:translate(-50%, calc(-50% + 25px));
+  z-index:500;pointer-events:none;
+  display:none;
+  transition:opacity .2s;
 }
-#btn-layer svg{width:26px;height:26px}
+#crosshair.show{display:block}
+#crosshair svg{width:32px;height:32px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6))}
 
+/* クロスヘア時の確定ボタン */
+#crosshair-confirm{
+  position:fixed;left:50%;bottom:calc(90px + 14px);
+  transform:translateX(-50%);
+  z-index:900;
+  background:#e0e0e0;color:#111;
+  border:none;border-radius:20px;
+  padding:10px 24px;font-size:13px;font-weight:700;font-family:inherit;
+  cursor:pointer;display:none;
+  box-shadow:0 2px 10px rgba(0,0,0,.5);
+  white-space:nowrap;
+}
+#crosshair-confirm.show{display:block}
+
+/* レイヤーボタン */
+#btn-layer{position:fixed;right:14px;top:58px;z-index:900;background:#1c1c1c;border:1px solid #444;border-radius:10px;width:44px;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.5);padding:0}
+#btn-layer svg{width:26px;height:26px}
 #layer-menu{position:fixed;right:14px;top:110px;z-index:901;background:#1c1c1c;border:1px solid #444;border-radius:10px;overflow:hidden;display:none;box-shadow:0 4px 16px rgba(0,0,0,.6);min-width:160px}
 #layer-menu.open{display:block}
 .lm-item{padding:11px 16px;font-size:13px;font-weight:700;color:#888;cursor:pointer;border-bottom:1px solid #333;white-space:nowrap;display:flex;align-items:center;gap:8px}
@@ -167,7 +185,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;color:#e0e0e0;f
 <div id="header">
   <div id="header-left">
     <h1>渓流マップ</h1>
-    <span id="version">v0.8</span>
+    <span id="version">v0.8.1</span>
   </div>
   <div id="header-center">
     <div id="alt-label">現在標高</div>
@@ -184,32 +202,35 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;color:#e0e0e0;f
 
 <div id="map"></div>
 
-<!-- レイヤーボタン（SVGアイコン） -->
+<!-- クロスヘア -->
+<div id="crosshair">
+  <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="16" cy="16" r="4" stroke="#fff" stroke-width="1.5"/>
+    <line x1="16" y1="2" x2="16" y2="10" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="16" y1="22" x2="16" y2="30" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="2" y1="16" x2="10" y2="16" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="22" y1="16" x2="30" y2="16" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>
+</div>
+
+<!-- クロスヘア確定ボタン -->
+<button id="crosshair-confirm" onclick="confirmCrosshairPin()">ここにポイントを記録</button>
+
+<!-- レイヤーボタン -->
 <button id="btn-layer" onclick="toggleLayerMenu()">
   <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <!-- 3枚のレイヤー -->
     <ellipse cx="13" cy="20" rx="9" ry="3" fill="#444"/>
     <ellipse cx="13" cy="16" rx="9" ry="3" fill="#666"/>
     <ellipse cx="13" cy="12" rx="9" ry="3" fill="#999"/>
-    <!-- 切り替え矢印 -->
     <path d="M10 7 L13 4 L16 7" stroke="#e0e0e0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
     <path d="M16 9.5 L13 12.5 L10 9.5" stroke="#888" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
   </svg>
 </button>
-
 <div id="layer-menu">
-  <div class="lm-item active" id="lm-std" onclick="setLayer('std')">
-    <span class="lm-dot" style="background:#888"></span>標準地図
-  </div>
-  <div class="lm-item" id="lm-slope" onclick="setLayer('slope')">
-    <span class="lm-dot" style="background:#9b3fa0"></span>傾斜量図
-  </div>
-  <div class="lm-item" id="lm-both" onclick="setLayer('both')">
-    <span class="lm-dot" style="background:#4a90d9"></span>標準＋傾斜
-  </div>
-  <div class="lm-item" id="lm-avalanche" onclick="setLayer('avalanche')">
-    <span class="lm-dot" style="background:#e67e22"></span>雪崩危険箇所
-  </div>
+  <div class="lm-item active" id="lm-std" onclick="setLayer('std')"><span class="lm-dot" style="background:#888"></span>標準地図</div>
+  <div class="lm-item" id="lm-slope" onclick="setLayer('slope')"><span class="lm-dot" style="background:#9b3fa0"></span>傾斜量図</div>
+  <div class="lm-item" id="lm-both" onclick="setLayer('both')"><span class="lm-dot" style="background:#4a90d9"></span>標準＋傾斜</div>
+  <div class="lm-item" id="lm-avalanche" onclick="setLayer('avalanche')"><span class="lm-dot" style="background:#e67e22"></span>傾斜量区分図(雪崩)</div>
 </div>
 
 <button id="btn-myloc" onclick="cycleLocMode()">
@@ -307,13 +328,12 @@ const tileStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y
 const tileSlope = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/slopemap/{z}/{x}/{y}.png',{
   maxNativeZoom:15,maxZoom:17,opacity:0.7,keepBuffer:3
 });
-const tileAvalanche = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/avalanche/{z}/{x}/{y}.png',{
-  maxNativeZoom:15,maxZoom:17,opacity:0.8,keepBuffer:3
+const tileAvalanche = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/slopezone1map/{z}/{x}/{y}.png',{
+  maxNativeZoom:15,maxZoom:17,opacity:0.85,keepBuffer:3
 });
 tileStd.addTo(map);
 
-let currentLayer='std';
-let layerMenuOpen=false;
+let currentLayer='std', layerMenuOpen=false;
 
 function toggleLayerMenu(){
   layerMenuOpen=!layerMenuOpen;
@@ -322,27 +342,48 @@ function toggleLayerMenu(){
 function setLayer(type){
   currentLayer=type;
   map.eachLayer(l=>{if(l instanceof L.TileLayer) map.removeLayer(l);});
-  if(type==='std'){
-    tileStd.addTo(map);
-  } else if(type==='slope'){
-    tileSlope.options.opacity=1;tileSlope.addTo(map);
-  } else if(type==='both'){
-    tileStd.addTo(map);tileSlope.options.opacity=0.6;tileSlope.addTo(map);
-  } else if(type==='avalanche'){
-    tileStd.addTo(map);tileAvalanche.addTo(map);
-  }
+  if(type==='std') tileStd.addTo(map);
+  else if(type==='slope'){tileSlope.options.opacity=1;tileSlope.addTo(map);}
+  else if(type==='both'){tileStd.addTo(map);tileSlope.options.opacity=0.6;tileSlope.addTo(map);}
+  else if(type==='avalanche'){tileStd.addTo(map);tileAvalanche.addTo(map);}
   document.querySelectorAll('.lm-item').forEach(el=>el.classList.remove('active'));
   document.getElementById(`lm-${type}`).classList.add('active');
   layerMenuOpen=false;
   document.getElementById('layer-menu').classList.remove('open');
 }
 
-map.on('click',()=>{if(layerMenuOpen){layerMenuOpen=false;document.getElementById('layer-menu').classList.remove('open');}});
+// クロスヘア
+let crosshairMode = false;
+let pinLatLng = null; // 実際にピンを打つ座標
+
+function showCrosshair(){
+  crosshairMode = true;
+  document.getElementById('crosshair').classList.add('show');
+  document.getElementById('crosshair-confirm').classList.add('show');
+  updateCrosshairLatLng();
+}
+function hideCrosshair(){
+  crosshairMode = false;
+  document.getElementById('crosshair').classList.remove('show');
+  document.getElementById('crosshair-confirm').classList.remove('show');
+}
+function updateCrosshairLatLng(){
+  pinLatLng = map.getCenter();
+}
+function confirmCrosshairPin(){
+  updateCrosshairLatLng();
+  hideCrosshair();
+  openPtSheet();
+}
+
 map.on('dragstart',()=>{
   if(layerMenuOpen){layerMenuOpen=false;document.getElementById('layer-menu').classList.remove('open');}
   if(locMode>0) setLocMode(0);
+  showCrosshair();
 });
-map.on('zoomstart',e=>{if(e.originalEvent&&locMode>0) setLocMode(0);});
+map.on('move',()=>{ if(crosshairMode) updateCrosshairLatLng(); });
+map.on('click',()=>{ if(layerMenuOpen){layerMenuOpen=false;document.getElementById('layer-menu').classList.remove('open');} });
+map.on('zoomstart',e=>{ if(e.originalEvent&&locMode>0) setLocMode(0); });
 
 // データ
 let sessions=JSON.parse(localStorage.getItem('keisyu_v5')||'[]');
@@ -351,6 +392,10 @@ let curLatLng=null,curAlt=null,curHeading=null,gpsReady=false;
 let markers={},trackLayers={},pinType=null,editCmtId=null;
 let startTime=null,totDist=0,elevUp=0,elevDn=0,lastAlt=null,eTimer=null;
 let navTarget=null;
+
+// セッションなし時の一時ピン保管用
+let tempPins = JSON.parse(localStorage.getItem('keisyu_temppins')||'[]');
+const TEMP_SESSION_ID = 'temp';
 
 // WakeLock
 let wakeLock=null;
@@ -370,7 +415,10 @@ let locMode=0;
 function setLocMode(m){
   locMode=m;
   document.getElementById('loc-icon').textContent=m===0?'◎':'▲';
-  if(m>0&&curLatLng) map.panTo(curLatLng,{animate:true,duration:0.3});
+  if(m>0&&curLatLng){
+    map.panTo(curLatLng,{animate:true,duration:0.3});
+    hideCrosshair();
+  }
 }
 function cycleLocMode(){setLocMode(locMode===0?1:0);}
 
@@ -463,37 +511,65 @@ function closeSheet(){
 
 // ポイントシート
 function openPtSheet(){
-  if(!gpsReady||!curLatLng){alert('GPS取得中です。');return;}
-  if(!isTracking){alert('軌跡記録を開始してからポイントを記録してください。');return;}
+  // クロスヘアモードでなく、GPSも未取得なら警告
+  if(!crosshairMode && !gpsReady){alert('GPS取得中です。');return;}
   closeSheet();
   document.getElementById('pt-sheet').classList.add('open');
 }
-function closePtSheet(){document.getElementById('pt-sheet').classList.remove('open');}
+function closePtSheet(){
+  document.getElementById('pt-sheet').classList.remove('open');
+  // キャンセル時はクロスヘアも消す
+  hideCrosshair();
+}
+
+// ピンを打つ座標を決定
+function getPinLatLng(){
+  // クロスヘアモードなら地図中心、それ以外は現在地
+  if(crosshairMode && pinLatLng) return [pinLatLng.lat, pinLatLng.lng];
+  if(curLatLng) return curLatLng;
+  return null;
+}
 
 // ピン
 const typeLabel=t=>({catch:'釣果',entry:'入渓',exit:'退渓',start:'開始',end:'終了'}[t]||t);
 function startPin(type){
-  closePtSheet();pinType=type;
+  closePtSheet();
+  pinType=type;
   const L2={catch:'🎣 釣果を記録',entry:'▶ 入渓ポイントを記録',exit:'◀ 退渓ポイントを記録'};
-  document.getElementById('memo-title').textContent=L2[type];
+  document.getElementById('memo-title').textContent=L2[type]||typeLabel(type)+' を記録';
   document.getElementById('memo-name').value='';
   document.getElementById('memo-text').value='';
   document.getElementById('memo-wrap').classList.add('open');
   setTimeout(()=>document.getElementById('memo-name').focus(),150);
 }
-function cancelPin(){document.getElementById('memo-wrap').classList.remove('open');pinType=null;}
+function cancelPin(){
+  document.getElementById('memo-wrap').classList.remove('open');
+  pinType=null;
+  hideCrosshair();
+}
 
 function savePin(){
-  if(!curLatLng||!pinType||!activeSession)return;
+  const latlng = getPinLatLng();
+  if(!latlng||!pinType) return;
+  hideCrosshair();
   const now=Date.now();
-  const pin={id:now,type:pinType,lat:curLatLng[0],lng:curLatLng[1],
+  const pin={id:now,type:pinType,lat:latlng[0],lng:latlng[1],
     name:document.getElementById('memo-name').value.trim()||typeLabel(pinType),
     memo:document.getElementById('memo-text').value.trim(),
     date:fmtD(now),time:fmtT(now),auto:false};
-  addPinToSession(pin);
+
+  if(activeSession){
+    addPinToSession(pin);
+  } else {
+    // 軌跡記録中でない場合は一時ピンとして保存
+    tempPins.push(pin);
+    localStorage.setItem('keisyu_temppins', JSON.stringify(tempPins));
+    addPinMarker(TEMP_SESSION_ID, pin);
+    updateLogCount();
+  }
   document.getElementById('memo-wrap').classList.remove('open');
-  map.setView(curLatLng,Math.max(map.getZoom(),14));
-  pinType=null;updateLogCount();
+  map.setView(latlng, Math.max(map.getZoom(),14));
+  pinType=null;
 }
 
 function autoPin(type){
@@ -532,16 +608,19 @@ function toggleTracking(){
     isTracking=true;startTime=Date.now();
     totDist=0;elevUp=0;elevDn=0;lastAlt=curAlt;
     activeSession={id:startTime,startTime,endTime:null,date:fmtD(startTime),startStr:fmtT(startTime),endStr:null,durStr:null,dist:0,elevGain:0,elevLoss:0,comment:'',pins:[],points:[]};
+    // 一時ピンをセッションに取り込む
+    if(tempPins.length>0){
+      tempPins.forEach(p=>{ activeSession.pins.push(p); if(markers[TEMP_SESSION_ID]){const i=markers[TEMP_SESSION_ID].findIndex(m=>m.id===p.id);if(i!==-1){map.removeLayer(markers[TEMP_SESSION_ID][i].marker);markers[TEMP_SESSION_ID].splice(i,1);} addPinMarker(activeSession.id,p);} });
+      tempPins=[];localStorage.setItem('keisyu_temppins','[]');
+    }
     trackPts=curLatLng?[[...curLatLng,curAlt||0]]:[];
     trackLine=L.polyline(trackPts.map(p=>[p[0],p[1]]),{color:'#9b3fa0',weight:3,opacity:.9,dashArray:'8,5'}).addTo(map);
     document.getElementById('btn-track').classList.add('rec');
     document.getElementById('trk-icon').textContent='⏹';
     document.getElementById('trk-lbl').textContent='記録停止';
     eTimer=setInterval(updateElapsed,1000);
-    // 開始ポイント自動記録
     autoPin('start');
   } else {
-    // 終了ポイント自動記録
     autoPin('end');
     isTracking=false;clearInterval(eTimer);
     const endTime=Date.now();
@@ -574,8 +653,8 @@ function saveSessions(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{localS
 
 // エクスポート
 function exportData(){
-  const json=JSON.stringify(sessions,null,2);
-  const blob=new Blob([json],{type:'application/json'});
+  const data={sessions,tempPins};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;a.download=`keisyu_log_${new Date().toISOString().slice(0,10)}.json`;
@@ -588,13 +667,14 @@ function importData(e){
   const reader=new FileReader();
   reader.onload=ev=>{
     try{
-      const imported=JSON.parse(ev.target.result);
-      if(!Array.isArray(imported)){alert('ファイル形式が正しくありません。');return;}
+      let imported=JSON.parse(ev.target.result);
+      // 旧形式（配列）と新形式（{sessions,tempPins}）に対応
+      const importedSessions=Array.isArray(imported)?imported:imported.sessions||[];
       const existIds=new Set(sessions.map(s=>s.id));
       let added=0;
-      imported.forEach(s=>{if(!existIds.has(s.id)){sessions.push(s);added++;}});
+      importedSessions.forEach(s=>{if(!existIds.has(s.id)){sessions.push(s);added++;}});
       saveSessions();
-      imported.forEach(s=>{
+      importedSessions.forEach(s=>{
         if(s.points?.length>1&&!trackLayers[s.id]){
           const l=L.polyline(s.points.map(p=>[p[0],p[1]]),{color:'#9b3fa0',weight:3,opacity:.6,dashArray:'8,5'}).addTo(map);
           trackLayers[s.id]=l;
@@ -629,8 +709,39 @@ function closeLog(){document.getElementById('log-screen').classList.remove('open
 let minimaps={};
 function renderLog(){
   const body=document.getElementById('log-body');
-  if(!sessions.length){body.innerHTML='<div style="color:#555;text-align:center;padding:40px 0;font-size:13px">釣行記録なし</div>';return;}
-  body.innerHTML=[...sessions].reverse().map(s=>`
+  const hasTempPins=tempPins.length>0;
+  const hasSessions=sessions.length>0;
+  if(!hasSessions&&!hasTempPins){body.innerHTML='<div style="color:#555;text-align:center;padding:40px 0;font-size:13px">釣行記録なし</div>';return;}
+
+  let html='';
+
+  // 一時ピン表示
+  if(hasTempPins){
+    html+=`<div style="background:#1c1c1c;border:1px solid #444;border-radius:12px;margin-bottom:10px;overflow:hidden">
+      <div style="padding:12px 14px;border-bottom:1px solid #333">
+        <div style="font-size:13px;font-weight:700;color:#888">記録中のポイント（軌跡未開始）</div>
+      </div>
+      <div style="padding:0 14px 4px">
+        ${tempPins.map(p=>`
+          <div class="pi">
+            <span class="pi-badge">${typeLabel(p.type)}</span>
+            <div class="pi-info">
+              <div class="pi-name">${p.name}</div>
+              <div class="pi-meta">${p.date} ${p.time}</div>
+              ${p.memo?`<div class="pi-memo">${p.memo}</div>`:''}
+              <div class="pi-actions">
+                <button class="pi-jump" onclick="jumpTo(${p.lat},${p.lng})">地図で見る</button>
+                <button class="pi-nav" onclick='openNavModal(${JSON.stringify(p)})'>🧭 ナビ</button>
+              </div>
+            </div>
+            <button class="pi-del" onclick="delTempPin(${p.id})">✕</button>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // セッション一覧
+  html+=[...sessions].reverse().map(s=>`
     <div class="sc" id="sc-${s.id}">
       <div class="sc-hdr" onclick="toggleSC(${s.id})">
         <div><div class="sc-title">${s.date}　${s.startStr}${s.endStr?' – '+s.endStr:''}</div><div class="sc-sub">${s.durStr||''}　${(s.dist/1000).toFixed(2)}km</div></div>
@@ -662,6 +773,8 @@ function renderLog(){
       </div>
       <button class="sc-del" onclick="delSession(${s.id})">この釣行を削除</button>
     </div>`).join('');
+
+  body.innerHTML=html;
   minimaps={};
 }
 
@@ -677,10 +790,7 @@ function initMinimap(sid){
   const mm=L.map(el,{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false});
   L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',{maxZoom:17}).addTo(mm);
   const bounds=[];
-  if(s.points?.length>1){
-    L.polyline(s.points.map(p=>[p[0],p[1]]),{color:'#9b3fa0',weight:3,opacity:.9,dashArray:'6,4'}).addTo(mm);
-    bounds.push(...s.points.map(p=>[p[0],p[1]]));
-  }
+  if(s.points?.length>1){L.polyline(s.points.map(p=>[p[0],p[1]]),{color:'#9b3fa0',weight:3,opacity:.9,dashArray:'6,4'}).addTo(mm);bounds.push(...s.points.map(p=>[p[0],p[1]]));}
   s.pins?.forEach(p=>{L.marker([p.lat,p.lng],{icon:makeIcon(p.type,p.auto)}).addTo(mm);bounds.push([p.lat,p.lng]);});
   if(bounds.length>0) mm.fitBounds(L.latLngBounds(bounds),{padding:[16,16]});
   else mm.setView([42.7,141.0],11);
@@ -689,6 +799,15 @@ function initMinimap(sid){
 }
 
 function jumpTo(lat,lng){closeLog();map.setView([lat,lng],15);}
+
+function delTempPin(pid){
+  if(!confirm('このポイントを削除しますか？'))return;
+  tempPins=tempPins.filter(p=>p.id!==pid);
+  localStorage.setItem('keisyu_temppins',JSON.stringify(tempPins));
+  if(markers[TEMP_SESSION_ID]){const i=markers[TEMP_SESSION_ID].findIndex(m=>m.id===pid);if(i!==-1){map.removeLayer(markers[TEMP_SESSION_ID][i].marker);markers[TEMP_SESSION_ID].splice(i,1);}}
+  renderLog();updateLogCount();
+}
+
 function delPin(sid,pid){
   if(!confirm('このポイントを削除しますか？'))return;
   const s=sessions.find(s=>s.id===sid);if(!s)return;
@@ -718,7 +837,8 @@ function saveCmt(){
 }
 function updateLogCount(){
   const el=document.getElementById('log-count');
-  el.textContent=sessions.length;el.style.display=sessions.length?'flex':'none';
+  const total=sessions.length+(tempPins.length>0?1:0);
+  el.textContent=total;el.style.display=total?'flex':'none';
 }
 
 // 初期ロード
@@ -726,6 +846,7 @@ sessions.forEach(s=>{
   if(s.points?.length>1){const l=L.polyline(s.points.map(p=>[p[0],p[1]]),{color:'#9b3fa0',weight:3,opacity:.6,dashArray:'8,5'}).addTo(map);trackLayers[s.id]=l;}
   s.pins?.forEach(p=>addPinMarker(s.id,p));
 });
+tempPins.forEach(p=>addPinMarker(TEMP_SESSION_ID,p));
 updateLogCount();
 navigator.geolocation?.getCurrentPosition(pos=>map.setView([pos.coords.latitude,pos.coords.longitude],13),()=>{});
 </script>
