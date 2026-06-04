@@ -266,7 +266,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;color:#e0e0e0;f
     <button class="tb" onclick="startPin('catch')"><span class="ti">🎣</span>釣果</button>
     <button class="tb" onclick="startPin('exit')"><span class="ti">◀</span>退渓</button>
   </div>
-  <button id="pt-cancel" onclick="closePtSheet()">キャンセル</button>
+  <button id="pt-cancel" onclick="closePtSheet(true)">キャンセル</button>
 </div>
 
 <div id="memo-wrap">
@@ -372,8 +372,12 @@ function updateCrosshairLatLng(){
 }
 function confirmCrosshairPin(){
   updateCrosshairLatLng();
-  hideCrosshair();
-  openPtSheet();
+  // 座標を確定してからクロスヘアを消す（モードはまだ保持）
+  document.getElementById('crosshair').classList.remove('show');
+  document.getElementById('crosshair-confirm').classList.remove('show');
+  // crosshairModeはtrueのまま・pinLatLngは保持したままシートを開く
+  closeSheet();
+  document.getElementById('pt-sheet').classList.add('open');
 }
 
 map.on('dragstart',()=>{
@@ -516,10 +520,9 @@ function openPtSheet(){
   closeSheet();
   document.getElementById('pt-sheet').classList.add('open');
 }
-function closePtSheet(){
+function closePtSheet(cancel=false){
   document.getElementById('pt-sheet').classList.remove('open');
-  // キャンセル時はクロスヘアも消す
-  hideCrosshair();
+  if(cancel) hideCrosshair();
 }
 
 // ピンを打つ座標を決定
