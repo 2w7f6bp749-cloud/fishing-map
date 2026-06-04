@@ -185,7 +185,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#111;color:#e0e0e0;f
 <div id="header">
   <div id="header-left">
     <h1>渓流マップ</h1>
-    <span id="version">v0.8.1</span>
+    <span id="version">v0.8.2</span>
   </div>
   <div id="header-center">
     <div id="alt-label">現在標高</div>
@@ -552,7 +552,7 @@ function cancelPin(){
 }
 
 function savePin(){
-  const latlng = getPinLatLng();
+  const latlng = crosshairMode ? [pinLatLng.lat, pinLatLng.lng] : getPinLatLng();
   if(!latlng||!pinType) return;
   hideCrosshair();
   const now=Date.now();
